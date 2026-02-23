@@ -9,7 +9,7 @@
   <% else %>
     <ul>
       <% items.each do |item| %>
-        <% remaining = item.medication_lots.sum(&:quantity_remaining) %>
+        <% remaining = item.medication_lots.sum(:quantity_remaining) %>
         <li>
           <strong><%= item.drug_product.display_name %></strong>
           ：残量 <%= remaining %>

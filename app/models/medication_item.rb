@@ -4,4 +4,9 @@ class MedicationItem < ApplicationRecord
 
   has_many :medication_lots, dependent: :destroy
   has_many :intake_logs, dependent: :destroy
+
+  def remaining_quantity
+    medication_lots.sum(:quantity_remaining)
+  end
+
 end
