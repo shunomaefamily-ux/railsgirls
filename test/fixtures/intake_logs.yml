@@ -1,0 +1,11 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  medication_item: one
+  quantity_taken: 1
+  taken_at: 2026-02-23 16:07:12
+
+two:
+  medication_item: two
+  quantity_taken: 1
+  taken_at: 2026-02-23 16:07:12

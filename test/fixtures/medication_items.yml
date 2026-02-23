@@ -1,0 +1,11 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  person: one
+  drug_product: one
+  active: false
+
+two:
+  person: two
+  drug_product: two
+  active: false

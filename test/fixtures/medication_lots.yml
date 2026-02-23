@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  medication_item: one
+  quantity_initial: 1
+  quantity_remaining: 1
+  base_date: 2026-02-23
+  shelf_life_days: 1
+
+two:
+  medication_item: two
+  quantity_initial: 1
+  quantity_remaining: 1
+  base_date: 2026-02-23
+  shelf_life_days: 1

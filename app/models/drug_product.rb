@@ -1,0 +1,2 @@
+class DrugProduct < ApplicationRecord
+end
