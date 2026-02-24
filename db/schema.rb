@@ -10,9 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_23_072529) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_23_234101) do
   create_table "drug_products", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.integer "default_shelf_life_days"
     t.string "display_name"
     t.boolean "is_temporary"
     t.datetime "updated_at", null: false
@@ -40,6 +41,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_23_072529) do
   create_table "medication_lots", force: :cascade do |t|
     t.date "base_date"
     t.datetime "created_at", null: false
+    t.date "expires_on"
     t.integer "medication_item_id", null: false
     t.integer "quantity_initial"
     t.integer "quantity_remaining"

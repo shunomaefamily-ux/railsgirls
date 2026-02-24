@@ -1,0 +1,37 @@
+<h1>入庫</h1>
+
+<p>
+  人: <%= @item.person.name %><br>
+  薬: <%= @item.drug_product.display_name %>
+</p>
+
+<%= form_with model: [@item, @lot] do |f| %>
+  <% if @lot.errors.any? %>
+    <div>
+      <ul>
+        <% @lot.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= f.label :base_date, "入庫日" %><br>
+    <%= f.date_field :base_date %>
+  </div>
+
+  <div>
+    <%= f.label :expires_on, "期限（印字を見て修正OK）" %><br>
+    <%= f.date_field :expires_on %>
+  </div>
+
+  <div>
+    <%= f.label :quantity_remaining, "数量" %><br>
+    <%= f.number_field :quantity_remaining, min: 1 %>
+  </div>
+
+  <div>
+    <%= f.submit "登録" %>
+  </div>
+<% end %>

@@ -13,5 +13,15 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   # root "posts#index"
 
+resources :medication_items do
+  resources :medication_lots, only: [:new, :create]
+end
+
+
+resources :medication_items do
+  post :consume_one, on: :member
+  resources :medication_lots, only: [:new, :create]
+end
+
   
 end
