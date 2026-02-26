@@ -1,0 +1,7 @@
+<h1>Person #<%= @person.id %></h1>
+
+<p>
+  <%= link_to "QR読み取りへ", scan_person_imports_path(@person) %>
+</p>
+
+<p>Imports件数: <%= @person.imports.count %></p>

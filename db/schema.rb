@@ -10,13 +10,22 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_23_234101) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_26_144326) do
   create_table "drug_products", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "default_shelf_life_days"
     t.string "display_name"
     t.boolean "is_temporary"
     t.datetime "updated_at", null: false
+  end
+
+  create_table "imports", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "person_id", null: false
+    t.text "raw_text"
+    t.string "source"
+    t.datetime "updated_at", null: false
+    t.index ["person_id"], name: "index_imports_on_person_id"
   end
 
   create_table "intake_logs", force: :cascade do |t|
@@ -56,6 +65,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_23_234101) do
     t.datetime "updated_at", null: false
   end
 
+  add_foreign_key "imports", "people"
   add_foreign_key "intake_logs", "medication_items"
   add_foreign_key "medication_items", "drug_products"
   add_foreign_key "medication_items", "people"

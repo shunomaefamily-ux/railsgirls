@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  get "people/show"
   root "home#index"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
@@ -28,6 +29,14 @@ resources :medication_items do
     patch :discard, on: :member
   end
   post :consume_one, on: :member
+end
+
+resources :people do
+  resources :imports, only: [:create] do
+    collection do
+      get :scan
+    end
+  end
 end
 
   
