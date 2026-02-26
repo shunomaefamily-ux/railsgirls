@@ -24,9 +24,38 @@ class MedicationItem < ApplicationRecord
         lot.update!(quantity_remaining: lot.quantity_remaining - take)
         remaining -= take
       end
+
+      intake_logs.create!(
+        quantity_taken: amount,
+        taken_at: Time.current
+     )
+
+
+      
+
     end
 
     true
   end
+
+  def last_taken_at
+    intake_logs.order(taken_at: :desc).limit(1).pick(:taken_at)
+  end
+
+ def expired?
+   d = nearest_expires_on
+   d.present? && d < Date.current
+ end
+
+ EXPIRY_WARNING_DAYS = 30
+
+def nearest_expires_on
+  medication_lots.remaining.minimum(:expires_on)
+end
+
+ def expiring_soon?(remaining_days = EXPIRY_WARNING_DAYS)
+   d = nearest_expires_on
+   d.present? && d >= Date.current && d <= Date.current + remaining_days
+ end
 
 end

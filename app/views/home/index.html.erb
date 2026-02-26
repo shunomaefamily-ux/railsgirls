@@ -25,6 +25,22 @@
             consume_one_medication_item_path(item),
             method: :post,
             disabled: item.remaining_quantity == 0 %>
+          <% if item.last_taken_at %>
+          <div>最終服用：<%= item.last_taken_at.strftime("%Y-%m-%d %H:%M") %></div>
+            <% else %>
+            <div>最終服用：なし</div>
+          <% end %>
+          
+          <% exp = item.nearest_expires_on %>
+          <% if exp.nil? %>
+          <div>期限：なし</div>
+          <% elsif item.expired? %>
+          <div style="color:red;">期限切れ：<%= exp %></div>
+          <% elsif item.expiring_soon? %>
+          <div style="color:orange;">期限近い：<%= exp %></div>
+          <% else %>
+          <div>期限：<%= exp %></div>
+          <% end %>
 
         </li>
       <% end %>
