@@ -57,5 +57,9 @@ end
    d = nearest_expires_on
    d.present? && d >= Date.current && d <= Date.current + remaining_days
  end
+ 
+ def expired_lots
+  medication_lots.remaining.expired.fifo
+ end
 
 end

@@ -23,5 +23,12 @@ resources :medication_items do
   resources :medication_lots, only: [:new, :create]
 end
 
+resources :medication_items do
+  resources :medication_lots, only: [:new, :create] do
+    patch :discard, on: :member
+  end
+  post :consume_one, on: :member
+end
+
   
 end

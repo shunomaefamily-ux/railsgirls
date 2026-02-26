@@ -17,32 +17,51 @@
     <ul>
       <% items.each do |item| %>
         <% remaining = item.remaining_quantity %>
-        <li>
-          <strong><%= item.drug_product.display_name %></strong>
+       <li>
+         <strong><%= item.drug_product.display_name %></strong>
           ：残量 <%= remaining %>
-          <%= link_to "入庫", new_medication_item_medication_lot_path(item) %>
-          <%= button_to "+1消費",
-            consume_one_medication_item_path(item),
-            method: :post,
-            disabled: item.remaining_quantity == 0 %>
-          <% if item.last_taken_at %>
-          <div>最終服用：<%= item.last_taken_at.strftime("%Y-%m-%d %H:%M") %></div>
-            <% else %>
-            <div>最終服用：なし</div>
-          <% end %>
-          
-          <% exp = item.nearest_expires_on %>
-          <% if exp.nil? %>
-          <div>期限：なし</div>
-          <% elsif item.expired? %>
-          <div style="color:red;">期限切れ：<%= exp %></div>
-          <% elsif item.expiring_soon? %>
-          <div style="color:orange;">期限近い：<%= exp %></div>
-          <% else %>
-          <div>期限：<%= exp %></div>
-          <% end %>
 
-        </li>
+         <%= link_to "入庫", new_medication_item_medication_lot_path(item) %>
+
+         <%= button_to "+1消費",
+         consume_one_medication_item_path(item),
+         method: :post,
+         disabled: (remaining == 0) %>
+
+         <%# --- 最終服用（DBアクセス1回にする） --- %>
+         <% if (t = item.last_taken_at) %>
+         <div>最終服用：<%= t.strftime("%Y-%m-%d %H:%M") %></div>
+         <% else %>
+         <div>最終服用：なし</div>
+         <% end %>
+
+         <%# --- 期限（expを1回だけ取る） --- %>
+         <% exp = item.nearest_expires_on %>
+         <% if exp.nil? %>
+         <div>期限：なし</div>
+         <% elsif item.expired? %>
+           <div style="color: red;">
+             期限切れ（捨ててOK）：
+             <ul>
+               <% item.expired_lots.each do |lot| %>
+                <li>
+                 処方日：<%= lot.base_date %> /
+                 期限：<%= lot.expires_on %> /
+                 残：<%= lot.quantity_remaining %>
+                 <%= button_to "捨てる",
+                  discard_medication_item_medication_lot_path(item, lot),
+                  method: :patch,
+                  data: { turbo_confirm: "この期限切れロットを捨てますか？" } %>
+                </li>
+               <% end %>
+             </ul>
+           </div>
+         <% elsif item.expiring_soon? %>
+         <div style="color: orange;">期限近い：<%= exp %></div>
+         <% else %>
+         <div>期限：<%= exp %></div>
+         <% end %>
+       </li>
       <% end %>
     </ul>
   <% end %>

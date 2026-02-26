@@ -24,9 +24,21 @@ class MedicationLotsController < ApplicationController
     end
   end
 
+  def discard
+   @item = MedicationItem.find(params[:medication_item_id])
+   @lot  = @item.medication_lots.find(params[:id]) # そのitemのlotだけ触れるようにする
+
+   @lot.update!(quantity_remaining: 0)
+
+   redirect_to root_path, notice: "期限切れロットを捨てました"
+  end
+
   private
 
   def lot_params
     params.require(:medication_lot).permit(:base_date, :expires_on, :quantity_remaining)
   end
+
+
+  
 end
