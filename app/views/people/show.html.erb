@@ -4,4 +4,9 @@
   <%= link_to "QR読み取りへ", scan_person_imports_path(@person) %>
 </p>
 
+<% if @latest_import %>
+  <h2>最新Import（source: <%= @latest_import.source %>）</h2>
+  <pre style="white-space: pre-wrap;"><%= @latest_import.raw_text %></pre>
+<% end %>
+
 <p>Imports件数: <%= @person.imports.count %></p>
