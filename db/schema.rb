@@ -34,6 +34,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_26_144326) do
     t.integer "quantity_taken"
     t.datetime "taken_at"
     t.datetime "updated_at", null: false
+    t.index ["medication_item_id", "taken_at"], name: "index_intake_logs_on_medication_item_id_and_taken_at"
     t.index ["medication_item_id"], name: "index_intake_logs_on_medication_item_id"
   end
 
@@ -44,6 +45,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_26_144326) do
     t.integer "person_id", null: false
     t.datetime "updated_at", null: false
     t.index ["drug_product_id"], name: "index_medication_items_on_drug_product_id"
+    t.index ["person_id", "drug_product_id"], name: "index_medication_items_on_person_id_and_drug_product_id", unique: true
     t.index ["person_id"], name: "index_medication_items_on_person_id"
   end
 
@@ -56,6 +58,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_26_144326) do
     t.integer "quantity_remaining"
     t.integer "shelf_life_days"
     t.datetime "updated_at", null: false
+    t.index ["expires_on"], name: "index_medication_lots_on_expires_on"
+    t.index ["medication_item_id", "base_date"], name: "index_medication_lots_on_medication_item_id_and_base_date"
     t.index ["medication_item_id"], name: "index_medication_lots_on_medication_item_id"
   end
 
