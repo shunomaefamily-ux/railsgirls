@@ -20,6 +20,9 @@ module Imports
         @import.update!(person: @person)
 
         extracted = Jahis::Tc08::Extractor.new(raw_text: @import.raw_text).call
+        unless extracted.version == "JAHISTC08"
+          raise ArgumentError, "JAHISTC08形式ではありません（手入力で登録してください）"
+        end
         base_date = extracted.base_date || Date.today
 
         extracted.drugs.each do |drug_hash|

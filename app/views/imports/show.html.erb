@@ -14,6 +14,9 @@
 <hr>
 
 <h3>このImportを在庫として登録</h3>
+<% unless @jahis_tc08 %>
+  <p style="color:red;">このQRはJAHISTC08ではありません（現在は登録できません）。</p>
+<% end %>
 
 <%= form_with url: register_import_path(@import), method: :post do %>
   <div>

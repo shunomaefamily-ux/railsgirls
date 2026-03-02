@@ -15,8 +15,8 @@ class ImportsController < ApplicationController
   def show
     @import = Import.find(params[:id])
     @people = Person.order(:id)
+    @jahis_tc08 = @import.raw_text.to_s.start_with?("JAHISTC08")
   end
-
 
   def register
     import = Import.find(params[:id])
@@ -40,18 +40,22 @@ class ImportsController < ApplicationController
         Person.find(choice)
       end
 
-    # ✅ ここが「quantity を受け取る」本体
     quantity = params[:quantity].to_i
     if quantity <= 0
       redirect_to import_path(import), alert: "入庫数は1以上で入力してください"
       return
     end
 
-    # ✅ サービスへ渡す（import.update! はサービス側）
-    Imports::RegisterAndSeedStock.new(import: import, person: person, quantity: quantity).call!
-
-    redirect_to root_path, notice: "在庫に登録しました（#{person.name} / 入庫#{quantity}）"
+    begin
+      Imports::RegisterAndSeedStock.new(import: import, person: person, quantity: quantity).call!
+      redirect_to root_path, notice: "在庫に登録しました（#{person.name} / 入庫#{quantity}）"
+    rescue ArgumentError => e
+      redirect_to import_path(import), alert: e.message
+    rescue ActiveRecord::RecordInvalid => e
+      redirect_to import_path(import), alert: e.message
+    end
   end
+
   private
 
   def import_params
