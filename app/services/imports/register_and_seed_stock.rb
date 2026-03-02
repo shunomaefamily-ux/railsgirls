@@ -11,14 +11,17 @@ module Imports
       ActiveRecord::Base.transaction do
         @import.update!(person: @person)
 
-        drug = DrugProduct.find_or_create_by!(display_name: "仮: ロキソニン") do |d|
-          d.is_temporary = true
+        raw = @import.raw_text.to_s
+        name = raw.strip.first(40).presence || "不明な薬"
+
+        drug = DrugProduct.find_or_create_by!(display_name: name) do |d|
+        d.is_temporary = true
         end
 
         item = MedicationItem.find_or_create_by!(person: @person, drug_product: drug) do |i|
          i.active = true
         end
-        
+
         base_date = Date.today
         shelf_life_days = drug.shelf_life_days_or_default
         expires_on = base_date + shelf_life_days

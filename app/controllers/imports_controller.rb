@@ -40,12 +40,18 @@ class ImportsController < ApplicationController
         Person.find(choice)
       end
 
-    # ★ここだけ差し替え：import.update! をやめてサービス呼び出し
-    Imports::RegisterAndSeedStock.new(import: import, person: person, quantity: 10).call!
+    # ✅ ここが「quantity を受け取る」本体
+    quantity = params[:quantity].to_i
+    if quantity <= 0
+      redirect_to import_path(import), alert: "入庫数は1以上で入力してください"
+      return
+    end
 
-    redirect_to root_path, notice: "登録者を確定しました（#{person.name}）在庫を追加しました"
+    # ✅ サービスへ渡す（import.update! はサービス側）
+    Imports::RegisterAndSeedStock.new(import: import, person: person, quantity: quantity).call!
+
+    redirect_to root_path, notice: "在庫に登録しました（#{person.name} / 入庫#{quantity}）"
   end
-
   private
 
   def import_params
