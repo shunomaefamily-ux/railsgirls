@@ -14,30 +14,31 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   # root "posts#index"
 
-resources :medication_items do
-  resources :medication_lots, only: [:new, :create]
-end
-
-
-resources :medication_items do
-  post :consume_one, on: :member
-  resources :medication_lots, only: [:new, :create]
-end
-
-resources :medication_items do
-  resources :medication_lots, only: [:new, :create] do
-    patch :discard, on: :member
+  resources :medication_items do
+    resources :medication_lots, only: [:new, :create]
   end
-  post :consume_one, on: :member
-end
 
-resources :people do
-  resources :imports, only: [:create] do
+
+  resources :medication_items do
+    post :consume_one, on: :member
+    resources :medication_lots, only: [:new, :create]
+  end
+
+  resources :medication_items do
+    resources :medication_lots, only: [:new, :create] do
+      patch :discard, on: :member
+    end
+    post :consume_one, on: :member
+  end
+
+  # ✅ Importは独立（ホーム直下でQR取り込み）
+  resources :imports, only: %i[create show] do
     collection do
       get :scan
     end
+     member { post :register }
   end
-end
+
 
   
 end

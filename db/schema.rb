@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_26_144326) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_02_022440) do
   create_table "drug_products", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "default_shelf_life_days"
@@ -21,7 +21,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_26_144326) do
 
   create_table "imports", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.integer "person_id", null: false
+    t.integer "person_id"
     t.text "raw_text"
     t.string "source"
     t.datetime "updated_at", null: false
@@ -39,7 +39,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_26_144326) do
   end
 
   create_table "medication_items", force: :cascade do |t|
-    t.boolean "active"
+    t.boolean "active", default: true
     t.datetime "created_at", null: false
     t.integer "drug_product_id", null: false
     t.integer "person_id", null: false

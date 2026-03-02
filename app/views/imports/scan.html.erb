@@ -41,21 +41,22 @@
           await qr.stop();
           stopBtn.disabled = true;
 
-          const res = await fetch("<%= person_imports_path(@person) %>", {
+          const res = await fetch("/imports", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "X-CSRF-Token": csrf
             },
             body: JSON.stringify({
-              import: { raw_text: decodedText, source: "qr" }
+              raw_text: decodedText,
+              source: "qr"
             })
           });
 
           if (res.ok) {
-            log("保存しました。");
-            // 次に、imports一覧 or person詳細に戻す、など好きな導線へ
-            window.location.href = "<%= person_path(@person) %>";
+            const data = await res.json(); // ← 追加（{ id: ... } を受け取る）
+            log("保存しました。移動します…");
+            window.location.href = `/imports/${data.id}`;
           } else {
             const body = await res.text();
             log("保存失敗: " + body);
