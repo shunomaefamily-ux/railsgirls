@@ -38,10 +38,21 @@
     </div>
   </div>
 
-    <div>
-        <label>入庫数</label>
+    <% if @jahis_tc08 %>
+      <h4 style="margin-top: 12px;">薬ごとの入庫数</h4>
+
+      <% @jahis_tc08.drugs.each_with_index do |drug, i| %>
+        <div style="margin-top: 12px;">
+          <label><%= drug[:display_name] %></label><br>
+          <%= number_field_tag "quantities[#{i}]", 10, min: 1 %>
+        </div>
+      <% end %>
+    <% else %>
+      <div style="margin-top: 12px;">
+        <label>入庫数</label><br>
         <input type="number" name="quantity" value="10" min="1" />
-    </div>
+      </div>
+    <% end %>
 
   <div style="margin-top: 12px;">
     <%= submit_tag "在庫に登録する", id: "register_submit", disabled: true %>
