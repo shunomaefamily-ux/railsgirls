@@ -26,7 +26,14 @@
     try {
       qr = new Html5Qrcode("reader");
       const cameras = await Html5Qrcode.getCameras();
-      const cameraId = cameras[0]?.id;
+      if (!cameras?.length) throw new Error("カメラが見つかりません");
+
+      // 背面っぽいラベルを優先（iPhone/Androidでだいたい効く）
+      const backCam =
+        cameras.find(c => /back|rear|environment/i.test(c.label)) ||
+        cameras[cameras.length - 1]; // 最後が背面のことが多い
+
+      const cameraId = backCam.id;
       if (!cameraId) { throw new Error("カメラが見つかりません"); }
 
       stopBtn.disabled = false;
