@@ -18,17 +18,15 @@ module Imports
         base_date = extracted.base_date || Date.current
 
         extracted.drugs.each_with_index do |drug_hash, index|
-          drug = find_or_create_drug!(drug_hash)
-          item = find_or_create_item!(drug)
           qty = resolve_quantity(index)
-          lot_expires_on = resolve_expires_on(base_date, drug)
+          lot_expires_on = resolve_expires_on(base_date, drug_hash)
 
-          create_lot!(
-            item: item,
+          Stock::Register.call(
+            person: @person,
+            drug_name: drug_hash[:display_name],
             base_date: base_date,
             expires_on: lot_expires_on,
-            quantity: qty,
-            shelf_life_days: drug.shelf_life_days_or_default
+            quantity: qty
           )
         end
       end
@@ -54,18 +52,6 @@ module Imports
       extracted
     end
 
-    def find_or_create_drug!(drug_hash)
-      DrugProduct.find_or_create_by!(display_name: drug_hash[:display_name]) do |drug_product|
-        drug_product.is_temporary = true if drug_product.respond_to?(:is_temporary=)
-      end
-    end
-
-    def find_or_create_item!(drug)
-      MedicationItem.find_or_create_by!(person: @person, drug_product: drug) do |item|
-        item.active = true
-      end
-    end
-
     def resolve_quantity(index)
       if @quantities.present?
         @quantities[index.to_s].to_i
@@ -74,18 +60,16 @@ module Imports
       end
     end
 
-    def resolve_expires_on(base_date, drug)
-      @expires_on || (base_date + drug.shelf_life_days_or_default)
+    def resolve_expires_on(base_date, drug_hash)
+      @expires_on || (base_date + shelf_life_days_for(drug_hash[:display_name]))
     end
 
-    def create_lot!(item:, base_date:, expires_on:, quantity:, shelf_life_days:)
-      item.medication_lots.create!(
-        base_date: base_date,
-        shelf_life_days: shelf_life_days,
-        expires_on: expires_on,
-        quantity_initial: quantity,
-        quantity_remaining: quantity
-      )
+    def shelf_life_days_for(drug_name)
+      drug = DrugProduct.find_or_create_by!(display_name: drug_name) do |drug_product|
+        drug_product.is_temporary = true if drug_product.respond_to?(:is_temporary=)
+      end
+
+      drug.shelf_life_days_or_default
     end
   end
 end
