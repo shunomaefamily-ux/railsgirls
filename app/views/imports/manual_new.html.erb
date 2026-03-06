@@ -1,0 +1,43 @@
+<h1>入庫</h1>
+
+<p>
+  人: <%= @person.name %>
+</p>
+
+<%= form_with url: person_manual_imports_path(@person), method: :post do %>
+  <div>
+    <label>薬名</label><br>
+    <%= text_field_tag :drug_name, "",
+      list: "drug_name_list",
+      placeholder: "薬名を入力してください" %>
+
+    <datalist id="drug_name_list">
+      <% @drug_products.each do |drug| %>
+        <option value="<%= drug.display_name %>">
+      <% end %>
+    </datalist>
+  </div>
+
+  <div style="margin-top: 12px;">
+    <label>入庫日</label><br>
+    <%= date_field_tag :base_date, @base_date %>
+  </div>
+
+  <div style="margin-top: 12px;">
+    <label>期限（印字を見て修正OK）</label><br>
+    <%= date_field_tag :expires_on, @expires_on %>
+  </div>
+
+  <div style="margin-top: 12px;">
+    <label>数量</label><br>
+    <%= number_field_tag :quantity, @quantity, min: 0 %>
+  </div>
+
+  <div style="margin-top: 12px;">
+    <%= submit_tag "登録" %>
+  </div>
+<% end %>
+
+<p style="margin-top: 16px;">
+  <%= link_to "ホームへ", root_path %>
+</p>

@@ -9,6 +9,7 @@
   
 
   <h2><%= person.name %></h2>
+  <%= link_to "＋新規薬入庫", new_person_manual_import_path(person) %>
 
   <% items = person.medication_items.where(active: true) %>
   <% if items.empty? %>

@@ -39,6 +39,9 @@ Rails.application.routes.draw do
      member { post :register }
   end
 
+  get  "people/:person_id/manual_imports/new", to: "imports#manual_new", as: :new_person_manual_import
+  post "people/:person_id/manual_imports",     to: "imports#manual_create", as: :person_manual_imports
+
 
   
 end

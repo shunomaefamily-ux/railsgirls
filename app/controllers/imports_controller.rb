@@ -101,9 +101,86 @@ class ImportsController < ApplicationController
 
   end
 
+
+  def manual_new
+    @person = Person.find(params[:person_id])
+    @drug_products = DrugProduct.order(:display_name)
+
+    @base_date = Date.today
+    @expires_on = Date.today + 1.year
+    @quantity = 0
+  end
+
+
+  def manual_create
+    @person = Person.find(params[:person_id])
+
+    drug_name = params[:drug_name].to_s.strip
+    quantity  = params[:quantity].to_i
+
+    base_date =
+      begin
+        Date.parse(params[:base_date].to_s)
+      rescue ArgumentError
+        nil
+      end
+
+    expires_on =
+      begin
+        Date.parse(params[:expires_on].to_s)
+      rescue ArgumentError
+        nil
+      end
+
+    if drug_name.blank?
+      redirect_to new_person_manual_import_path(@person), alert: "薬名を入力してください"
+      return
+    end
+
+    if quantity <= 0
+      redirect_to new_person_manual_import_path(@person), alert: "数量は1以上で入力してください"
+      return
+    end
+
+    if base_date.nil?
+      redirect_to new_person_manual_import_path(@person), alert: "入庫日を入力してください"
+      return
+    end
+
+    if expires_on.nil?
+      redirect_to new_person_manual_import_path(@person), alert: "期限を入力してください"
+      return
+    end
+
+    drug = DrugProduct.find_or_create_by!(display_name: drug_name) do |dp|
+      dp.is_temporary = true if dp.respond_to?(:is_temporary=)
+    end
+
+    item = MedicationItem.find_or_create_by!(person: @person, drug_product: drug) do |mi|
+      mi.active = true
+    end
+
+    shelf_life_days = (expires_on - base_date).to_i
+
+    item.medication_lots.create!(
+      base_date: base_date,
+      expires_on: expires_on,
+      shelf_life_days: shelf_life_days,
+      quantity_initial: quantity,
+      quantity_remaining: quantity
+    )
+
+    redirect_to root_path, notice: "手動で入庫しました"
+  rescue ActiveRecord::RecordInvalid => e
+    redirect_to new_person_manual_import_path(@person), alert: e.message
+  end
+
+
+
   private
 
   def import_params
     params.permit(:raw_text, :source)
   end
+  
 end
