@@ -1,7 +1,7 @@
 <h1>Person #<%= @person.id %></h1>
 
 <p>
-  <%= link_to "QR読み取りへ", scan_person_imports_path(@person) %>
+ <%= link_to "QR読み取り", scan_imports_path %>
 </p>
 
 <% if @latest_import %>
