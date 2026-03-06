@@ -106,8 +106,8 @@ class ImportsController < ApplicationController
     @person = Person.find(params[:person_id])
     @drug_products = DrugProduct.order(:display_name)
 
-    @base_date = Date.today
-    @expires_on = Date.today + 1.year
+    @base_date = Date.current
+    @expires_on = Date.current + 1.year
     @quantity = 0
   end
 
