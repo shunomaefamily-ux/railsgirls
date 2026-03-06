@@ -44,7 +44,7 @@
       <% @jahis_tc08.drugs.each_with_index do |drug, i| %>
         <div style="margin-top: 12px;">
           <label><%= drug[:display_name] %></label><br>
-          <%= number_field_tag "quantities[#{i}]", 10, min: 1 %>
+          <%= number_field_tag "quantities[#{i}]", @suggested_quantities[i] || 0, min: 0 %>
         </div>
       <% end %>
     <% else %>

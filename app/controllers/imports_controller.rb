@@ -20,6 +20,21 @@ class ImportsController < ApplicationController
       if @import.raw_text.to_s.start_with?("JAHISTC08")
         Jahis::Tc08::Extractor.new(raw_text: @import.raw_text).call
       end
+    
+    @suggested_quantities = {}
+
+    if @jahis_tc08
+      @jahis_tc08.drugs.each_with_index do |drug, i|
+        raw_usage_lines = @jahis_tc08.raw_usage_by_rp[drug[:rp_no]]
+
+        @suggested_quantities[i] = Jahis::Tc08::QuantityEstimator.call(
+          drug: drug,
+          raw_usage_lines: raw_usage_lines
+        )
+      end
+    end
+
+
   end
 
   def register
