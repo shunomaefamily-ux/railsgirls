@@ -1,4 +1,6 @@
 # app/services/jahis/tc08/quantity_estimator.rb
+require "csv"
+
 module Jahis
   module Tc08
     class QuantityEstimator
@@ -24,16 +26,16 @@ module Jahis
 
         case dosage_form_code
         when 1
-        times_per_day = extract_times_per_day(usage_name)
-        return 0 if times_per_day <= 0 || dispense_quantity <= 0
+          times_per_day = extract_times_per_day(usage_name)
+          return 0 if times_per_day <= 0 || dispense_quantity <= 0
 
-        (dose * times_per_day * dispense_quantity).ceil
+          (dose * times_per_day * dispense_quantity).ceil
         when 3
-        return 0 if dispense_quantity <= 0
+          return 0 if dispense_quantity <= 0
 
-        (dose * dispense_quantity).ceil
+          (dose * dispense_quantity).ceil
         else
-        0
+          0
         end
       rescue StandardError
         0
@@ -60,13 +62,13 @@ module Jahis
       end
 
       def extract_times_per_day(text)
-        s = normalize_text(text)
+        normalized = normalize_text(text)
 
-        if s =~ /1日(\d+)回/
+        if normalized =~ /1日(\d+)回/
           return Regexp.last_match(1).to_i
         end
 
-        if s =~ /分(\d+)/
+        if normalized =~ /分(\d+)/
           return Regexp.last_match(1).to_i
         end
 
@@ -77,17 +79,19 @@ module Jahis
         text.to_s.tr("０-９", "0-9").gsub(/\s+/, "")
       end
 
-      def safe_int(v)
-        s = v.to_s.strip
-        return nil if s.blank?
-        Integer(s, 10)
+      def safe_int(value)
+        str = value.to_s.strip
+        return nil if str.blank?
+
+        Integer(str, 10)
       rescue ArgumentError, TypeError
         nil
       end
 
-      def safe_decimal(v)
-        return 0.to_d if v.nil?
-        BigDecimal(v.to_s)
+      def safe_decimal(value)
+        return 0.to_d if value.nil?
+
+        BigDecimal(value.to_s)
       rescue ArgumentError, TypeError
         0.to_d
       end

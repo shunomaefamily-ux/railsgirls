@@ -1,3 +1,4 @@
+# app/services/stock/consume.rb
 # frozen_string_literal: true
 
 module Stock
@@ -6,11 +7,13 @@ module Stock
 
     def initialize(medication_item:, quantity:, taken_at: Time.current)
       @item = medication_item
-      @quantity = quantity
+      @quantity = quantity.to_i
       @taken_at = taken_at
     end
 
     def call
+      raise ArgumentError, "消費数量は1以上で指定してください" if @quantity <= 0
+
       ApplicationRecord.transaction do
         IntakeLog.create!(
           medication_item: @item,
@@ -26,8 +29,8 @@ module Stock
 
     private
 
-    def consume_from_lots!(qty)
-      remaining_to_consume = qty
+    def consume_from_lots!(requested_quantity)
+      remaining_to_consume = requested_quantity
 
       lots = @item.medication_lots
                   .where("quantity_remaining > 0")
@@ -37,9 +40,13 @@ module Stock
       lots.each do |lot|
         break if remaining_to_consume <= 0
 
-        take = [lot.quantity_remaining, remaining_to_consume].min
-        lot.update!(quantity_remaining: lot.quantity_remaining - take)
-        remaining_to_consume -= take
+        consumed_quantity = [lot.quantity_remaining, remaining_to_consume].min
+
+        lot.update!(
+          quantity_remaining: lot.quantity_remaining - consumed_quantity
+        )
+
+        remaining_to_consume -= consumed_quantity
       end
 
       raise OutOfStock, "在庫が足りません" if remaining_to_consume > 0
