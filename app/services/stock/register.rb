@@ -1,18 +1,21 @@
+# app/services/stock/register.rb
 module Stock
   class Register
-    def self.call(person:, drug_name:, base_date:, expires_on:, quantity:)
+    def self.call(person:, base_date:, expires_on:, quantity:, drug_name: nil, drug_product: nil)
       new(
         person: person,
         drug_name: drug_name,
+        drug_product: drug_product,
         base_date: base_date,
         expires_on: expires_on,
         quantity: quantity
       ).call
     end
 
-    def initialize(person:, drug_name:, base_date:, expires_on:, quantity:)
+    def initialize(person:, base_date:, expires_on:, quantity:, drug_name: nil, drug_product: nil)
       @person = person
       @drug_name = drug_name.to_s.strip
+      @drug_product = drug_product
       @base_date = base_date
       @expires_on = expires_on
       @quantity = quantity.to_i
@@ -22,7 +25,7 @@ module Stock
       ActiveRecord::Base.transaction do
         validate_inputs!
 
-        drug = find_or_create_drug!
+        drug = resolve_drug!
         item = find_or_create_item!(drug)
 
         lot = item.medication_lots.create!(
@@ -40,11 +43,15 @@ module Stock
     private
 
     def validate_inputs!
-      raise ArgumentError, "薬名を入力してください" if @drug_name.blank?
+      raise ArgumentError, "薬を指定してください" if @drug_product.nil? && @drug_name.blank?
       raise ArgumentError, "数量は1以上で入力してください" if @quantity <= 0
       raise ArgumentError, "入庫日を入力してください" if @base_date.nil?
       raise ArgumentError, "期限を入力してください" if @expires_on.nil?
       raise ArgumentError, "期限は入庫日以降で入力してください" if @expires_on < @base_date
+    end
+
+    def resolve_drug!
+      @drug_product || find_or_create_drug!
     end
 
     def find_or_create_drug!
