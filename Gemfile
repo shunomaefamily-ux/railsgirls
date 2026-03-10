@@ -66,3 +66,4 @@ group :test do
 end
 
 gem "pg", "~> 1.6"
+gem "csv"
