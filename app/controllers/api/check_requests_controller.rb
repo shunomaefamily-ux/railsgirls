@@ -28,4 +28,15 @@ class Api::CheckRequestsController < ApplicationController
       }
     }
   end
+
+  def confirm
+    person = Person.find_by(id: params[:id])
+    return render json: { error: "対象者が見つかりません" }, status: :not_found if person.nil?
+
+    CheckRequests::ConfirmCurrent.new(person: person).call!
+
+    render json: { ok: true }
+  rescue Stock::Consume::OutOfStock, ArgumentError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
 end
