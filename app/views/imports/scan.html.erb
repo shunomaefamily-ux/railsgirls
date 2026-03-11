@@ -23,6 +23,7 @@
     let handled = false;
     let starting = false;
     let cleaningUp = false;
+    let isNavigating = false;
 
     function log(msg) {
       debugEl.textContent = String(msg);
@@ -45,6 +46,7 @@
     }
 
     async function cleanupQr() {
+      if (isNavigating) return;
       if (!qr || cleaningUp) return;
 
       cleaningUp = true;
@@ -91,6 +93,7 @@
 
       starting = true;
       handled = false;
+      isNavigating = false;
       setBusyUi();
       log("カメラ準備中...");
 
@@ -116,9 +119,11 @@
               const data = await saveScan(decodedText);
               log("保存しました。移動します...");
 
+              isNavigating = true;
               window.location.replace(`/imports/${data.id}`);
             } catch (e) {
               handled = false;
+              isNavigating = false;
               log("エラー: " + (e?.message || e));
               setScanningUi();
             }
@@ -138,6 +143,7 @@
     }
 
     async function stopScanner() {
+      isNavigating = false;
       setBusyUi();
       log("停止中...");
 
@@ -155,9 +161,17 @@
     startBtn.addEventListener("click", startScanner);
     stopBtn.addEventListener("click", stopScanner);
 
-    window.addEventListener("beforeunload", cleanupQr);
-    window.addEventListener("pagehide", cleanupQr);
-    document.addEventListener("turbo:before-cache", cleanupQr);
+    window.addEventListener("beforeunload", () => {
+      if (!isNavigating) cleanupQr();
+    });
+
+    window.addEventListener("pagehide", () => {
+      if (!isNavigating) cleanupQr();
+    });
+
+    document.addEventListener("turbo:before-cache", () => {
+      if (!isNavigating) cleanupQr();
+    });
 
     setIdleUi();
   })();
