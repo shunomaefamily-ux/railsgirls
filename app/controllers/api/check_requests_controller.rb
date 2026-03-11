@@ -1,4 +1,6 @@
 class Api::CheckRequestsController < ApplicationController
+  skip_before_action :verify_authenticity_token
+
   def current
     person = Person
       .includes(medication_items: :drug_product)
