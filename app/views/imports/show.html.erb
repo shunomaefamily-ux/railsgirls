@@ -1,3 +1,5 @@
+<meta name="turbo-visit-control" content="reload">
+
 <h1>Import 詳細</h1>
 
 <p>ID: <%= @import.id %></p>
@@ -6,10 +8,8 @@
 <h3>raw_text</h3>
 <pre style="white-space: pre-wrap;"><%= @import.raw_text %></pre>
 
-<p><%= link_to "QR読み取りへ戻る", scan_imports_path %></p>
-<p><%= link_to "ホームへ", root_path %></p>
-
-
+<p><%= link_to "QR読み取りへ戻る", scan_imports_path, data: { turbo: false } %></p>
+<p><%= link_to "ホームへ", root_path, data: { turbo: false } %></p>
 
 <hr>
 
@@ -18,7 +18,7 @@
   <p style="color:red;">このQRはJAHISTC08ではありません（現在は登録できません）。</p>
 <% end %>
 
-<%= form_with url: register_import_path(@import), method: :post do %>
+<%= form_with url: register_import_path(@import), method: :post, data: { turbo: false } do %>
   <div>
     <label>登録者</label><br>
     <%= select_tag :person_choice,
@@ -38,21 +38,21 @@
     </div>
   </div>
 
-    <% if @jahis_tc08 %>
-      <h4 style="margin-top: 12px;">薬ごとの入庫数</h4>
+  <% if @jahis_tc08 %>
+    <h4 style="margin-top: 12px;">薬ごとの入庫数</h4>
 
-      <% @jahis_tc08.drugs.each_with_index do |drug, i| %>
-        <div style="margin-top: 12px;">
-          <label><%= drug[:display_name] %></label><br>
-          <%= number_field_tag "quantities[#{i}]", @suggested_quantities[i] || 0, min: 0 %>
-        </div>
-      <% end %>
-    <% else %>
+    <% @jahis_tc08.drugs.each_with_index do |drug, i| %>
       <div style="margin-top: 12px;">
-        <label>入庫数</label><br>
-        <input type="number" name="quantity" value="10" min="1" />
+        <label><%= drug[:display_name] %></label><br>
+        <%= number_field_tag "quantities[#{i}]", @suggested_quantities[i] || 0, min: 0 %>
       </div>
     <% end %>
+  <% else %>
+    <div style="margin-top: 12px;">
+      <label>入庫数</label><br>
+      <input type="number" name="quantity" value="10" min="1" />
+    </div>
+  <% end %>
 
   <div style="margin-top: 12px;">
     <%= submit_tag "在庫に登録する", id: "register_submit", disabled: true %>
@@ -77,7 +77,7 @@
       submit.disabled = !ok;
     }
 
-    sel.addEventListener("change", update);
+    if (sel) sel.addEventListener("change", update);
     if (newName) newName.addEventListener("input", update);
     update();
   })();
