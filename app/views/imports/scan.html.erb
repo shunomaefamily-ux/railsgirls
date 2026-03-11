@@ -1,5 +1,3 @@
-<meta name="turbo-visit-control" content="reload">
-
 <h1>QR読み取り</h1>
 
 <p>※カメラ許可が出ます。読めたら自動で保存します。</p>
@@ -10,118 +8,157 @@
 <div id="reader" style="width: 320px; max-width: 100%;"></div>
 <pre id="debug" style="white-space: pre-wrap;"></pre>
 
+<meta name="turbo-visit-control" content="reload">
+
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  const startBtn = document.getElementById("start");
-  const stopBtn  = document.getElementById("stop");
-  const debugEl  = document.getElementById("debug");
-  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-  const csrf     = csrfMeta ? csrfMeta.content : "";
+  (() => {
+    const startBtn = document.getElementById("start");
+    const stopBtn  = document.getElementById("stop");
+    const debugEl  = document.getElementById("debug");
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrf     = csrfMeta ? csrfMeta.content : "";
 
-  let qr = null;
-  let handled = false;
+    let qr = null;
+    let handled = false;
+    let starting = false;
+    let cleaningUp = false;
 
-  function log(msg) {
-    debugEl.textContent = msg;
-  }
+    function log(msg) {
+      debugEl.textContent = String(msg);
+      console.log("[QR]", msg);
+    }
 
-  startBtn.addEventListener("click", async () => {
-    startBtn.disabled = true;
-    stopBtn.disabled = true;
-    handled = false;
-    log("カメラ準備中...");
+    function setIdleUi() {
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
 
-    try {
-      qr = new Html5Qrcode("reader");
-      const cameras = await Html5Qrcode.getCameras();
-
-      if (!cameras || cameras.length === 0) {
-        throw new Error("カメラが見つかりません");
-      }
-
-      const backCam =
-        cameras.find(c =>
-          (c.label || "").toLowerCase().includes("back") ||
-          (c.label || "").toLowerCase().includes("rear") ||
-          (c.label || "").toLowerCase().includes("environment")
-        ) || cameras[cameras.length - 1];
-
-      if (!backCam || !backCam.id) {
-        throw new Error("カメラが見つかりません");
-      }
-
+    function setScanningUi() {
+      startBtn.disabled = true;
       stopBtn.disabled = false;
+    }
 
-      await qr.start(
-        backCam.id,
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        async (decodedText) => {
-          if (handled) return;
-          handled = true;
+    function setBusyUi() {
+      startBtn.disabled = true;
+      stopBtn.disabled = true;
+    }
 
-          try {
+    async function cleanupQr() {
+      if (!qr || cleaningUp) return;
+
+      cleaningUp = true;
+
+      try {
+        await qr.stop();
+      } catch (_) {
+      }
+
+      try {
+        await qr.clear();
+      } catch (_) {
+      }
+
+      qr = null;
+      cleaningUp = false;
+    }
+
+    async function saveScan(decodedText) {
+      const res = await fetch("/imports", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrf,
+          "Accept": "application/json"
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          raw_text: decodedText,
+          source: "qr"
+        })
+      });
+
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error("保存失敗: " + body);
+      }
+
+      return res.json();
+    }
+
+    async function startScanner() {
+      if (starting) return;
+
+      starting = true;
+      handled = false;
+      setBusyUi();
+      log("カメラ準備中...");
+
+      try {
+        await cleanupQr();
+
+        qr = new Html5Qrcode("reader");
+
+        await qr.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+          },
+          async (decodedText) => {
+            if (handled) return;
+            handled = true;
+            setBusyUi();
             log("読み取り成功。保存中...");
 
-            stopBtn.disabled = true;
-            startBtn.disabled = true;
+            try {
+              const data = await saveScan(decodedText);
+              log("保存しました。移動します...");
 
-            const res = await fetch("/imports", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-Token": csrf
-              },
-              credentials: "same-origin",
-              body: JSON.stringify({
-                raw_text: decodedText,
-                source: "qr"
-              })
-            });
-
-            if (!res.ok) {
-              const body = await res.text();
-              throw new Error("保存失敗: " + body);
-            }
-
-            const data = await res.json();
-            log("保存しました。移動します…");
-
-            // WebView ではここで stop/clear しない
-            setTimeout(() => {
               window.location.replace(`/imports/${data.id}`);
-            }, 300);
+            } catch (e) {
+              handled = false;
+              log("エラー: " + (e?.message || e));
+              setScanningUi();
+            }
+          },
+          () => {}
+        );
 
-          } catch (e) {
-            handled = false;
-            log("エラー: " + (e?.message || e));
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-          }
-        },
-        () => {}
-      );
-
-      log("読み取り中...");
-    } catch (e) {
-      log("エラー: " + (e?.message || e));
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
+        setScanningUi();
+        log("読み取り中...");
+      } catch (e) {
+        log("エラー: " + (e?.message || e));
+        await cleanupQr();
+        setIdleUi();
+      } finally {
+        starting = false;
+      }
     }
-  });
 
-  stopBtn.addEventListener("click", async () => {
-    if (!qr) return;
+    async function stopScanner() {
+      setBusyUi();
+      log("停止中...");
 
-    try {
-      await qr.stop();
-      await qr.clear();
-    } catch (e) {
-      log("停止時エラー: " + (e?.message || e));
-    } finally {
-      handled = false;
-      stopBtn.disabled = true;
-      startBtn.disabled = false;
-      log("停止しました。");
+      try {
+        await cleanupQr();
+        handled = false;
+        log("停止しました。");
+      } catch (e) {
+        log("停止時エラー: " + (e?.message || e));
+      } finally {
+        setIdleUi();
+      }
     }
-  });
+
+    startBtn.addEventListener("click", startScanner);
+    stopBtn.addEventListener("click", stopScanner);
+
+    window.addEventListener("beforeunload", cleanupQr);
+    window.addEventListener("pagehide", cleanupQr);
+    document.addEventListener("turbo:before-cache", cleanupQr);
+
+    setIdleUi();
+  })();
 </script>
