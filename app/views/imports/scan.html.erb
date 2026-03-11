@@ -8,22 +8,27 @@
 <div id="reader" style="width: 320px; max-width: 100%;"></div>
 <pre id="debug" style="white-space: pre-wrap;"></pre>
 
+<%= form_with model: Import.new, url: imports_path, method: :post, local: true, id: "qr-form" do |f| %>
+  <%= f.hidden_field :raw_text, id: "qr_raw_text" %>
+  <%= f.hidden_field :source, value: "qr" %>
+<% end %>
+
 <meta name="turbo-visit-control" content="reload">
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
   (() => {
-    const startBtn = document.getElementById("start");
-    const stopBtn  = document.getElementById("stop");
-    const debugEl  = document.getElementById("debug");
-    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    const csrf     = csrfMeta ? csrfMeta.content : "";
+    const startBtn  = document.getElementById("start");
+    const stopBtn   = document.getElementById("stop");
+    const debugEl   = document.getElementById("debug");
+    const formEl    = document.getElementById("qr-form");
+    const rawTextEl = document.getElementById("qr_raw_text");
 
     let qr = null;
     let handled = false;
     let starting = false;
     let cleaningUp = false;
-    let isNavigating = false;
+    let isSubmitting = false;
 
     function log(msg) {
       debugEl.textContent = String(msg);
@@ -46,7 +51,7 @@
     }
 
     async function cleanupQr() {
-      if (isNavigating) return;
+      if (isSubmitting) return;
       if (!qr || cleaningUp) return;
 
       cleaningUp = true;
@@ -65,35 +70,12 @@
       cleaningUp = false;
     }
 
-    async function saveScan(decodedText) {
-      const res = await fetch("/imports", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrf,
-          "Accept": "application/json"
-        },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          raw_text: decodedText,
-          source: "qr"
-        })
-      });
-
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error("保存失敗: " + body);
-      }
-
-      return res.json();
-    }
-
     async function startScanner() {
       if (starting) return;
 
       starting = true;
       handled = false;
-      isNavigating = false;
+      isSubmitting = false;
       setBusyUi();
       log("カメラ準備中...");
 
@@ -109,24 +91,16 @@
             qrbox: { width: 250, height: 250 },
             aspectRatio: 1.0
           },
-          async (decodedText) => {
+          (decodedText) => {
             if (handled) return;
+
             handled = true;
+            isSubmitting = true;
             setBusyUi();
-            log("読み取り成功。保存中...");
+            log("読み取り成功。送信します...");
 
-            try {
-              const data = await saveScan(decodedText);
-              log("保存しました。移動します...");
-
-              isNavigating = true;
-              window.location.replace(`/imports/${data.id}`);
-            } catch (e) {
-              handled = false;
-              isNavigating = false;
-              log("エラー: " + (e?.message || e));
-              setScanningUi();
-            }
+            rawTextEl.value = decodedText;
+            formEl.submit();
           },
           () => {}
         );
@@ -143,7 +117,7 @@
     }
 
     async function stopScanner() {
-      isNavigating = false;
+      isSubmitting = false;
       setBusyUi();
       log("停止中...");
 
@@ -162,15 +136,15 @@
     stopBtn.addEventListener("click", stopScanner);
 
     window.addEventListener("beforeunload", () => {
-      if (!isNavigating) cleanupQr();
+      if (!isSubmitting) cleanupQr();
     });
 
     window.addEventListener("pagehide", () => {
-      if (!isNavigating) cleanupQr();
+      if (!isSubmitting) cleanupQr();
     });
 
     document.addEventListener("turbo:before-cache", () => {
-      if (!isNavigating) cleanupQr();
+      if (!isSubmitting) cleanupQr();
     });
 
     setIdleUi();

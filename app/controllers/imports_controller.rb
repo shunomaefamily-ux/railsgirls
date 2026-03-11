@@ -3,12 +3,19 @@ class ImportsController < ApplicationController
   end
 
   def create
-    import = Import.new(import_params)
+    @import = Import.new(import_params)
 
-    if import.save
-      render json: { id: import.id }, status: :created
-    else
-      render json: { errors: import.errors.full_messages }, status: :unprocessable_entity
+    respond_to do |format|
+      if @import.save
+        format.html { redirect_to @import, notice: "保存しました。" }
+        format.json { render json: { id: @import.id }, status: :created }
+      else
+        format.html do
+          flash.now[:alert] = @import.errors.full_messages.join(", ")
+          render :scan, status: :unprocessable_entity
+        end
+        format.json { render json: { errors: @import.errors.full_messages }, status: :unprocessable_entity }
+      end
     end
   end
 
@@ -65,7 +72,11 @@ class ImportsController < ApplicationController
   private
 
   def import_params
-    params.permit(:raw_text, :source)
+    if params[:import].present?
+      params.require(:import).permit(:raw_text, :source)
+    else
+      params.permit(:raw_text, :source)
+    end
   end
 
   def parse_date(value)
