@@ -2,8 +2,7 @@ class Api::CheckRequestsController < ApplicationController
   def current
     person = Person
       .includes(medication_items: :drug_product)
-      .order(:id)
-      .first
+      .find_by(id: params[:person_id])
 
     return render json: { check_request: nil } if person.nil?
 
