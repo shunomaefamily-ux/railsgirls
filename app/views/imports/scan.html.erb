@@ -1,3 +1,5 @@
+<meta name="turbo-visit-control" content="reload">
+
 <h1>QR読み取り</h1>
 
 <p>※カメラ許可が出ます。読めたら自動で保存します。</p>
@@ -12,8 +14,6 @@
   <%= f.hidden_field :raw_text, id: "qr_raw_text" %>
   <%= f.hidden_field :source, value: "qr" %>
 <% end %>
-
-<meta name="turbo-visit-control" content="reload">
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
@@ -56,15 +56,8 @@
 
       cleaningUp = true;
 
-      try {
-        await qr.stop();
-      } catch (_) {
-      }
-
-      try {
-        await qr.clear();
-      } catch (_) {
-      }
+      try { await qr.stop(); } catch (_) {}
+      try { await qr.clear(); } catch (_) {}
 
       qr = null;
       cleaningUp = false;
