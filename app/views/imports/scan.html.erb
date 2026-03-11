@@ -1,3 +1,5 @@
+<meta name="turbo-visit-control" content="reload">
+
 <h1>QR読み取り</h1>
 
 <p>※カメラ許可が出ます。読めたら自動で保存します。</p>
@@ -13,9 +15,10 @@
   const startBtn = document.getElementById("start");
   const stopBtn  = document.getElementById("stop");
   const debugEl  = document.getElementById("debug");
-  const csrf     = document.querySelector('meta[name="csrf-token"]').content;
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  const csrf     = csrfMeta ? csrfMeta.content : "";
 
-  let qr;
+  let qr = null;
   let handled = false;
 
   function log(msg) {
@@ -37,18 +40,20 @@
       }
 
       const backCam =
-        cameras.find(c => /back|rear|environment/i.test(c.label)) ||
-        cameras[cameras.length - 1];
+        cameras.find(c =>
+          (c.label || "").toLowerCase().includes("back") ||
+          (c.label || "").toLowerCase().includes("rear") ||
+          (c.label || "").toLowerCase().includes("environment")
+        ) || cameras[cameras.length - 1];
 
-      const cameraId = backCam.id;
-      if (!cameraId) {
+      if (!backCam || !backCam.id) {
         throw new Error("カメラが見つかりません");
       }
 
       stopBtn.disabled = false;
 
       await qr.start(
-        cameraId,
+        backCam.id,
         { fps: 10, qrbox: { width: 250, height: 250 } },
         async (decodedText) => {
           if (handled) return;
@@ -60,17 +65,13 @@
             stopBtn.disabled = true;
             startBtn.disabled = true;
 
-            if (qr) {
-              await qr.stop();
-              await qr.clear();
-            }
-
             const res = await fetch("/imports", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
                 "X-CSRF-Token": csrf
               },
+              credentials: "same-origin",
               body: JSON.stringify({
                 raw_text: decodedText,
                 source: "qr"
@@ -85,8 +86,9 @@
             const data = await res.json();
             log("保存しました。移動します…");
 
+            // WebView ではここで stop/clear しない
             setTimeout(() => {
-              window.location.href = `/imports/${data.id}`;
+              window.location.replace(`/imports/${data.id}`);
             }, 300);
 
           } catch (e) {
