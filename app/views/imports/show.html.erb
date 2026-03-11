@@ -1,84 +1,145 @@
 <meta name="turbo-visit-control" content="reload">
 
-<h1>Import 詳細</h1>
+<h1>QR読み取り</h1>
 
-<p>ID: <%= @import.id %></p>
-<p>source: <%= @import.try(:source) %></p>
+<p>※カメラ許可が出ます。読めたら自動で保存します。</p>
 
-<h3>raw_text</h3>
-<pre style="white-space: pre-wrap;"><%= @import.raw_text %></pre>
+<button id="start">読み取り開始</button>
+<button id="stop" disabled>停止</button>
 
-<p><%= link_to "QR読み取りへ戻る", scan_imports_path, data: { turbo: false } %></p>
-<p><%= link_to "ホームへ", root_path, data: { turbo: false } %></p>
+<div id="reader" style="width: 320px; max-width: 100%;"></div>
+<pre id="debug" style="white-space: pre-wrap;"></pre>
 
-<hr>
-
-<h3>このImportを在庫として登録</h3>
-<% unless @jahis_tc08 %>
-  <p style="color:red;">このQRはJAHISTC08ではありません（現在は登録できません）。</p>
+<%= form_with model: Import.new, url: imports_path, method: :post, local: true, id: "qr-form" do |f| %>
+  <%= f.hidden_field :raw_text, id: "qr_raw_text" %>
+  <%= f.hidden_field :source, value: "qr" %>
 <% end %>
 
-<%= form_with url: register_import_path(@import), method: :post, data: { turbo: false } do %>
-  <div>
-    <label>登録者</label><br>
-    <%= select_tag :person_choice,
-      options_for_select(
-        [["登録者（選択してください）", "", { disabled: true, selected: true }],
-         ["＋ 新規Personを作成", "new"]] +
-        @people.map { |p| [p.name, p.id] }
-      ),
-      id: "person_choice" %>
-  </div>
-
-  <div id="new_person_fields" style="display:none; margin-top: 12px;">
-    <h4>新規Person</h4>
-    <div>
-      <label>名前（必須）</label><br>
-      <%= text_field_tag "person_attributes[name]", "", placeholder: "例：太郎" %>
-    </div>
-  </div>
-
-  <% if @jahis_tc08 %>
-    <h4 style="margin-top: 12px;">薬ごとの入庫数</h4>
-
-    <% @jahis_tc08.drugs.each_with_index do |drug, i| %>
-      <div style="margin-top: 12px;">
-        <label><%= drug[:display_name] %></label><br>
-        <%= number_field_tag "quantities[#{i}]", @suggested_quantities[i] || 0, min: 0 %>
-      </div>
-    <% end %>
-  <% else %>
-    <div style="margin-top: 12px;">
-      <label>入庫数</label><br>
-      <input type="number" name="quantity" value="10" min="1" />
-    </div>
-  <% end %>
-
-  <div style="margin-top: 12px;">
-    <%= submit_tag "在庫に登録する", id: "register_submit", disabled: true %>
-  </div>
-<% end %>
-
+<script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  (function() {
-    const sel = document.getElementById("person_choice");
-    const newFields = document.getElementById("new_person_fields");
-    const submit = document.getElementById("register_submit");
-    const newName = document.querySelector('input[name="person_attributes[name]"]');
+  (() => {
+    const startBtn  = document.getElementById("start");
+    const stopBtn   = document.getElementById("stop");
+    const debugEl   = document.getElementById("debug");
+    const formEl    = document.getElementById("qr-form");
+    const rawTextEl = document.getElementById("qr_raw_text");
 
-    function update() {
-      const v = sel.value;
-      newFields.style.display = (v === "new") ? "block" : "none";
+    let qr = null;
+    let handled = false;
+    let starting = false;
+    let cleaningUp = false;
+    let isSubmitting = false;
 
-      let ok = false;
-      if (v && v !== "new") ok = true;
-      if (v === "new") ok = (newName && newName.value.trim().length > 0);
-
-      submit.disabled = !ok;
+    function log(msg) {
+      debugEl.textContent = String(msg);
+      console.log("[QR]", msg);
     }
 
-    if (sel) sel.addEventListener("change", update);
-    if (newName) newName.addEventListener("input", update);
-    update();
+    function setIdleUi() {
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+
+    function setScanningUi() {
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+    }
+
+    function setBusyUi() {
+      startBtn.disabled = true;
+      stopBtn.disabled = true;
+    }
+
+    async function cleanupQr() {
+      if (isSubmitting) return;
+      if (!qr || cleaningUp) return;
+
+      cleaningUp = true;
+
+      try { await qr.stop(); } catch (_) {}
+      try { await qr.clear(); } catch (_) {}
+
+      qr = null;
+      cleaningUp = false;
+    }
+
+    async function startScanner() {
+      if (starting) return;
+
+      starting = true;
+      handled = false;
+      isSubmitting = false;
+      setBusyUi();
+      log("カメラ準備中...");
+
+      try {
+        await cleanupQr();
+
+        qr = new Html5Qrcode("reader");
+
+        await qr.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+          },
+          (decodedText) => {
+            if (handled) return;
+
+            handled = true;
+            isSubmitting = true;
+            setBusyUi();
+            log("読み取り成功。送信します...");
+
+            rawTextEl.value = decodedText;
+            formEl.submit();
+          },
+          () => {}
+        );
+
+        setScanningUi();
+        log("読み取り中...");
+      } catch (e) {
+        log("エラー: " + (e?.message || e));
+        await cleanupQr();
+        setIdleUi();
+      } finally {
+        starting = false;
+      }
+    }
+
+    async function stopScanner() {
+      isSubmitting = false;
+      setBusyUi();
+      log("停止中...");
+
+      try {
+        await cleanupQr();
+        handled = false;
+        log("停止しました。");
+      } catch (e) {
+        log("停止時エラー: " + (e?.message || e));
+      } finally {
+        setIdleUi();
+      }
+    }
+
+    startBtn.addEventListener("click", startScanner);
+    stopBtn.addEventListener("click", stopScanner);
+
+    window.addEventListener("beforeunload", () => {
+      if (!isSubmitting) cleanupQr();
+    });
+
+    window.addEventListener("pagehide", () => {
+      if (!isSubmitting) cleanupQr();
+    });
+
+    document.addEventListener("turbo:before-cache", () => {
+      if (!isSubmitting) cleanupQr();
+    });
+
+    setIdleUi();
   })();
 </script>
