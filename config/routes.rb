@@ -25,8 +25,10 @@ Rails.application.routes.draw do
   get  "people/:person_id/manual_imports/new", to: "imports#manual_new", as: :new_person_manual_import
   post "people/:person_id/manual_imports",     to: "imports#manual_create", as: :person_manual_imports
 
-  namespace :api do
+ namespace :api do
+    get "people", to: "people#index"
     get "check_request/current", to: "check_requests#current"
+    post "check_requests/:id/confirm", to: "check_requests#confirm"
   end
 
 end
