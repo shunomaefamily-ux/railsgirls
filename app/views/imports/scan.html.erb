@@ -16,25 +16,34 @@
   const csrf     = document.querySelector('meta[name="csrf-token"]').content;
 
   let qr;
+  let handled = false;
 
-  function log(msg) { debugEl.textContent = msg; }
+  function log(msg) {
+    debugEl.textContent = msg;
+  }
 
   startBtn.addEventListener("click", async () => {
     startBtn.disabled = true;
+    stopBtn.disabled = true;
+    handled = false;
     log("カメラ準備中...");
 
     try {
       qr = new Html5Qrcode("reader");
       const cameras = await Html5Qrcode.getCameras();
-      if (!cameras?.length) throw new Error("カメラが見つかりません");
 
-      // 背面っぽいラベルを優先（iPhone/Androidでだいたい効く）
+      if (!cameras || cameras.length === 0) {
+        throw new Error("カメラが見つかりません");
+      }
+
       const backCam =
         cameras.find(c => /back|rear|environment/i.test(c.label)) ||
-        cameras[cameras.length - 1]; // 最後が背面のことが多い
+        cameras[cameras.length - 1];
 
       const cameraId = backCam.id;
-      if (!cameraId) { throw new Error("カメラが見つかりません"); }
+      if (!cameraId) {
+        throw new Error("カメラが見つかりません");
+      }
 
       stopBtn.disabled = false;
 
@@ -42,35 +51,52 @@
         cameraId,
         { fps: 10, qrbox: { width: 250, height: 250 } },
         async (decodedText) => {
-          log("読み取り成功。保存中...");
+          if (handled) return;
+          handled = true;
 
-          // まずは1回読めたら停止（MVPで安定させる）
-          await qr.stop();
-          stopBtn.disabled = true;
+          try {
+            log("読み取り成功。保存中...");
 
-          const res = await fetch("/imports", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRF-Token": csrf
-            },
-            body: JSON.stringify({
-              raw_text: decodedText,
-              source: "qr"
-            })
-          });
+            stopBtn.disabled = true;
+            startBtn.disabled = true;
 
-          if (res.ok) {
-            const data = await res.json(); // ← 追加（{ id: ... } を受け取る）
+            if (qr) {
+              await qr.stop();
+              await qr.clear();
+            }
+
+            const res = await fetch("/imports", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": csrf
+              },
+              body: JSON.stringify({
+                raw_text: decodedText,
+                source: "qr"
+              })
+            });
+
+            if (!res.ok) {
+              const body = await res.text();
+              throw new Error("保存失敗: " + body);
+            }
+
+            const data = await res.json();
             log("保存しました。移動します…");
-            window.location.href = `/imports/${data.id}`;
-          } else {
-            const body = await res.text();
-            log("保存失敗: " + body);
+
+            setTimeout(() => {
+              window.location.href = `/imports/${data.id}`;
+            }, 300);
+
+          } catch (e) {
+            handled = false;
+            log("エラー: " + (e?.message || e));
             startBtn.disabled = false;
+            stopBtn.disabled = true;
           }
         },
-        () => {} // 失敗コールバックはログがうるさいので無視でOK
+        () => {}
       );
 
       log("読み取り中...");
@@ -83,9 +109,14 @@
 
   stopBtn.addEventListener("click", async () => {
     if (!qr) return;
+
     try {
       await qr.stop();
+      await qr.clear();
+    } catch (e) {
+      log("停止時エラー: " + (e?.message || e));
     } finally {
+      handled = false;
       stopBtn.disabled = true;
       startBtn.disabled = false;
       log("停止しました。");
