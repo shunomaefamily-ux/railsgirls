@@ -19,7 +19,12 @@
         <% nearest_expires_on = item.nearest_expires_on %>
 
         <li>
-          <strong><%= item.drug_product.display_name %></strong>
+          <strong>
+            <%= item.drug_product.display_name %>
+            <% if item.usage_text.present? %>
+              （<%= item.usage_text %>）
+            <% end %>
+          </strong>
           ：残量 <%= remaining %>
 
           <%= link_to "入庫", new_medication_item_medication_lot_path(item) %>
@@ -71,7 +76,7 @@
     </ul>
   <% end %>
 
- <p>
+  <p>
     <%= link_to "QRコードリーダー", scan_imports_path %>
   </p>
 

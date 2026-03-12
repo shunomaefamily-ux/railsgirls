@@ -24,7 +24,8 @@ class Api::CheckRequestsController < ApplicationController
           {
             name: item.drug_product.display_name,
             dose_amount: "1",
-            dose_unit: "錠"
+            dose_unit: "錠",
+            usage_text: item.usage_text
           }
         end
       }

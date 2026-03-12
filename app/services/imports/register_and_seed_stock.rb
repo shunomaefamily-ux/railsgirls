@@ -1,3 +1,5 @@
+require "csv"
+
 module Imports
   class RegisterAndSeedStock
     def initialize(import:, person:, quantity:, quantities: nil, expires_on: nil)
@@ -20,13 +22,15 @@ module Imports
           drug = find_or_create_drug!(drug_hash)
           qty = resolve_quantity(index)
           lot_expires_on = resolve_expires_on(base_date, drug)
+          usage_text = extract_usage_text(extracted, drug_hash)
 
           Stock::Register.call(
             person: @person,
             drug_product: drug,
             base_date: base_date,
             expires_on: lot_expires_on,
-            quantity: qty
+            quantity: qty,
+            usage_text: usage_text
           )
         end
       end
@@ -43,7 +47,7 @@ module Imports
     end
 
     def extract_jahis!
-      raw_text = @import.raw_text.to_s
+      raw_text = normalize_jahis_text(@import.raw_text)
 
       extracted =
         if raw_text.start_with?("JAHISTC08")
@@ -59,6 +63,28 @@ module Imports
       end
 
       extracted
+    end
+
+    def normalize_jahis_text(text)
+      text.to_s
+          .sub("\uFEFF", "")
+          .gsub("\r\n", "\n")
+          .gsub("\r", "\n")
+          .strip
+    end
+
+    def extract_usage_text(extracted, drug_hash)
+      rp_no = drug_hash[:rp_no]
+      raw_usage_lines = extracted.raw_usage_by_rp[rp_no]
+      line = Array(raw_usage_lines).first.to_s
+      return nil if line.blank?
+
+      cols = CSV.parse_line(line, col_sep: ",")
+      return nil if cols.blank?
+
+      cols[2].to_s.strip.presence
+    rescue CSV::MalformedCSVError
+      nil
     end
 
     def find_or_create_drug!(drug_hash)

@@ -40,8 +40,15 @@
     <h4 style="margin-top: 12px;">薬ごとの入庫数</h4>
 
     <% @jahis.drugs.each_with_index do |drug, i| %>
-      <div style="margin-top: 12px;">
-        <label><%= drug[:display_name] %></label><br>
+      <div style="margin-top: 12px; padding: 10px; border: 1px solid #ddd;">
+        <label><strong><%= drug[:display_name] %></strong></label><br>
+
+        <% if @usage_texts.present? && @usage_texts[i].present? %>
+          <div style="color: #555; margin: 4px 0 8px 0;">
+            <%= @usage_texts[i] %>
+          </div>
+        <% end %>
+
         <%= number_field_tag "quantities[#{i}]", @suggested_quantities[i] || 0, min: 0 %>
       </div>
     <% end %>

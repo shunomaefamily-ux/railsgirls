@@ -1,24 +1,25 @@
-# app/services/stock/register.rb
 module Stock
   class Register
-    def self.call(person:, base_date:, expires_on:, quantity:, drug_name: nil, drug_product: nil)
+    def self.call(person:, base_date:, expires_on:, quantity:, drug_name: nil, drug_product: nil, usage_text: nil)
       new(
         person: person,
         drug_name: drug_name,
         drug_product: drug_product,
         base_date: base_date,
         expires_on: expires_on,
-        quantity: quantity
+        quantity: quantity,
+        usage_text: usage_text
       ).call
     end
 
-    def initialize(person:, base_date:, expires_on:, quantity:, drug_name: nil, drug_product: nil)
+    def initialize(person:, base_date:, expires_on:, quantity:, drug_name: nil, drug_product: nil, usage_text: nil)
       @person = person
       @drug_name = drug_name.to_s.strip
       @drug_product = drug_product
       @base_date = base_date
       @expires_on = expires_on
       @quantity = quantity.to_i
+      @usage_text = usage_text.to_s.strip.presence
     end
 
     def call
@@ -27,6 +28,7 @@ module Stock
 
         drug = resolve_drug!
         item = find_or_create_item!(drug)
+        update_item_usage_text!(item)
 
         lot = item.medication_lots.create!(
           base_date: @base_date,
@@ -63,7 +65,16 @@ module Stock
     def find_or_create_item!(drug)
       MedicationItem.find_or_create_by!(person: @person, drug_product: drug) do |mi|
         mi.active = true
+        mi.usage_text = @usage_text if mi.respond_to?(:usage_text=) && @usage_text.present?
       end
+    end
+
+    def update_item_usage_text!(item)
+      return unless item.respond_to?(:usage_text=)
+      return if @usage_text.blank?
+      return if item.usage_text == @usage_text
+
+      item.update!(usage_text: @usage_text)
     end
 
     def shelf_life_days
