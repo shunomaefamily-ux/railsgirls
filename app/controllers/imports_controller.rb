@@ -171,21 +171,39 @@ class ImportsController < ApplicationController
   end
 
   # ------------------------------------------------
-  # Usage slot estimation
+  # Usage slot estimation / inheritance
   # ------------------------------------------------
 
   def build_usage_suggestions(jahis)
     return {} unless jahis
 
-    jahis.drugs.each_with_index.each_with_object({}) do |(_drug, index), result|
+    jahis.drugs.each_with_index.each_with_object({}) do |(drug, index), result|
       usage_text = @usage_texts[index]
-      estimated = UsageSlotEstimator.call(usage_text)
+      previous_item = find_previous_medication_item(drug[:display_name])
 
-      result[index] = {
-        usage_kind: estimated.usage_kind,
-        usage_slots: estimated.usage_slots
-      }
+      if previous_item.present?
+        result[index] = {
+          usage_kind: previous_item.usage_kind,
+          usage_slots: Array(previous_item.usage_slots)
+        }
+      else
+        estimated = UsageSlotEstimator.call(usage_text)
+
+        result[index] = {
+          usage_kind: estimated.usage_kind,
+          usage_slots: estimated.usage_slots
+        }
+      end
     end
+  end
+
+  def find_previous_medication_item(display_name)
+    MedicationItem
+      .joins(:drug_product)
+      .where(drug_products: { display_name: display_name })
+      .where.not(usage_kind: nil)
+      .order(updated_at: :desc)
+      .first
   end
 
   # ------------------------------------------------
