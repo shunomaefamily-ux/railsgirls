@@ -1,5 +1,3 @@
-require "csv"
-
 class ImportsController < ApplicationController
   def scan
   end
@@ -18,11 +16,12 @@ class ImportsController < ApplicationController
     @import = Import.find(params[:id])
     @people = Person.order(:id)
 
-    @jahis = extract_jahis(@import)
+    preview = Imports::PreviewBuilder.new(import: @import).call
 
-    @suggested_quantities = build_suggested_quantities(@jahis)
-    @usage_texts = build_usage_texts(@jahis)
-    @usage_suggestions = build_usage_suggestions(@jahis)
+    @jahis = preview.jahis
+    @suggested_quantities = preview.suggested_quantities
+    @usage_texts = preview.usage_texts
+    @usage_suggestions = preview.usage_suggestions
   end
 
   def register
@@ -76,10 +75,6 @@ class ImportsController < ApplicationController
 
   private
 
-  # ------------------------------------------------
-  # Import
-  # ------------------------------------------------
-
   def import_params
     params.permit(:raw_text, :source)
   end
@@ -90,126 +85,6 @@ class ImportsController < ApplicationController
     nil
   end
 
-  # ------------------------------------------------
-  # JAHIS Extract
-  # ------------------------------------------------
-
-  def extract_jahis(import)
-    raw = normalize_jahis_text(import.raw_text)
-
-    if jahis_tc08?(raw)
-      Jahis::Tc08::Extractor.new(raw_text: raw).call
-    elsif jahis_tc06?(raw)
-      Jahis::Tc06::Extractor.new(raw_text: raw).call
-    else
-      nil
-    end
-  end
-
-  def normalize_jahis_text(text)
-    text.to_s
-        .sub("\uFEFF", "")
-        .gsub("\r\n", "\n")
-        .gsub("\r", "\n")
-        .strip
-  end
-
-  def jahis_tc08?(text)
-    first_line(text).start_with?("JAHISTC08")
-  end
-
-  def jahis_tc06?(text)
-    first_line(text).start_with?("JAHISTC06")
-  end
-
-  def first_line(text)
-    text.to_s.lines.first.to_s.strip
-  end
-
-  # ------------------------------------------------
-  # Quantity estimation
-  # ------------------------------------------------
-
-  def build_suggested_quantities(jahis)
-    return {} unless jahis
-
-    jahis.drugs.each_with_index.each_with_object({}) do |(drug, index), result|
-      raw_usage_lines = jahis.raw_usage_by_rp[drug[:rp_no]]
-
-      result[index] =
-        Jahis::QuantityEstimator.call(
-          drug: drug,
-          raw_usage_lines: raw_usage_lines
-        )
-    end
-  end
-
-  # ------------------------------------------------
-  # Usage text extraction
-  # ------------------------------------------------
-
-  def build_usage_texts(jahis)
-    return {} unless jahis
-
-    jahis.drugs.each_with_index.each_with_object({}) do |(drug, index), result|
-      raw_usage_lines = jahis.raw_usage_by_rp[drug[:rp_no]]
-      result[index] = extract_usage_text(raw_usage_lines)
-    end
-  end
-
-  def extract_usage_text(raw_usage_lines)
-    line = Array(raw_usage_lines).first.to_s
-    return nil if line.blank?
-
-    cols = CSV.parse_line(line, col_sep: ",")
-    return nil if cols.blank?
-
-    cols[2].to_s.strip.presence
-
-  rescue CSV::MalformedCSVError
-    nil
-  end
-
-  # ------------------------------------------------
-  # Usage slot estimation / inheritance
-  # ------------------------------------------------
-
-  def build_usage_suggestions(jahis)
-    return {} unless jahis
-
-    jahis.drugs.each_with_index.each_with_object({}) do |(drug, index), result|
-      usage_text = @usage_texts[index]
-      previous_item = find_previous_medication_item(drug[:display_name])
-
-      if previous_item.present?
-        result[index] = {
-          usage_kind: previous_item.usage_kind,
-          usage_slots: Array(previous_item.usage_slots)
-        }
-      else
-        estimated = UsageSlotEstimator.call(usage_text)
-
-        result[index] = {
-          usage_kind: estimated.usage_kind,
-          usage_slots: estimated.usage_slots
-        }
-      end
-    end
-  end
-
-  def find_previous_medication_item(display_name)
-    MedicationItem
-      .joins(:drug_product)
-      .where(drug_products: { display_name: display_name })
-      .where.not(usage_kind: nil)
-      .order(updated_at: :desc)
-      .first
-  end
-
-  # ------------------------------------------------
-  # Person
-  # ------------------------------------------------
-
   def resolve_person!
     choice = params[:person_choice].to_s
 
@@ -217,7 +92,6 @@ class ImportsController < ApplicationController
 
     if choice == "new"
       attrs = params.fetch(:person_attributes, {}).permit(:name)
-
       name = attrs[:name].to_s.strip
       raise ArgumentError, "新規作成する場合は名前が必要です" if name.blank?
 
@@ -226,10 +100,6 @@ class ImportsController < ApplicationController
       Person.find(choice)
     end
   end
-
-  # ------------------------------------------------
-  # Quantity params
-  # ------------------------------------------------
 
   def extract_quantities
     quantity = params[:quantity].to_i
@@ -245,18 +115,12 @@ class ImportsController < ApplicationController
   def validate_quantities!(quantity, quantities)
     if quantities.present?
       quantities_int = quantities.transform_values(&:to_i)
-
-      return unless quantities_int.values.all? { |value| value <= 0 }
-
-      raise ArgumentError, "入庫数は1以上で入力してください"
+      raise ArgumentError, "入庫数は1以上で入力してください" if quantities_int.values.all? { |value| value <= 0 }
+      return
     end
 
     raise ArgumentError, "入庫数は1以上で入力してください" if quantity <= 0
   end
-
-  # ------------------------------------------------
-  # Usage params
-  # ------------------------------------------------
 
   def extract_usage_kind_by_index
     params.permit(usage_kind_by_index: {})
@@ -266,17 +130,8 @@ class ImportsController < ApplicationController
 
   def extract_usage_slots_by_index
     raw = params[:usage_slots_by_index] || {}
-
-    if raw.respond_to?(:to_unsafe_h)
-      raw.to_unsafe_h
-    else
-      raw.to_h
-    end
+    raw.respond_to?(:to_unsafe_h) ? raw.to_unsafe_h : raw.to_h
   end
-
-  # ------------------------------------------------
-  # Notice
-  # ------------------------------------------------
 
   def build_register_notice(person, quantity, quantities)
     msg_qty =

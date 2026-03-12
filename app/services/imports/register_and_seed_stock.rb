@@ -17,7 +17,7 @@ module Imports
         ensure_not_registered!
         attach_person_to_import!
 
-        extracted = extract_jahis!
+        extracted = Imports::JahisExtractor.new(raw_text: @import.raw_text).call!
         base_date = extracted.base_date || Date.current
 
         extracted.drugs.each_with_index do |drug_hash, index|
@@ -55,33 +55,6 @@ module Imports
       @import.update!(person: @person)
     end
 
-    def extract_jahis!
-      raw_text = normalize_jahis_text(@import.raw_text)
-
-      extracted =
-        if raw_text.start_with?("JAHISTC08")
-          Jahis::Tc08::Extractor.new(raw_text: raw_text).call
-        elsif raw_text.start_with?("JAHISTC06")
-          Jahis::Tc06::Extractor.new(raw_text: raw_text).call
-        else
-          nil
-        end
-
-      unless extracted
-        raise ArgumentError, "JAHISTC06/08形式ではありません（手入力で登録してください）"
-      end
-
-      extracted
-    end
-
-    def normalize_jahis_text(text)
-      text.to_s
-          .sub("\uFEFF", "")
-          .gsub("\r\n", "\n")
-          .gsub("\r", "\n")
-          .strip
-    end
-
     def extract_usage_text(extracted, drug_hash)
       rp_no = drug_hash[:rp_no]
       raw_usage_lines = extracted.raw_usage_by_rp[rp_no]
@@ -116,7 +89,6 @@ module Imports
 
     def resolve_usage_kind(index, usage_text)
       value = @usage_kind_by_index[index.to_s].to_s
-
       return value if %w[regular prn].include?(value)
 
       UsageSlotEstimator.call(usage_text).usage_kind
