@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_12_093547) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_12_104558) do
   create_table "drug_products", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "default_shelf_life_days"
@@ -44,10 +44,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_12_093547) do
     t.integer "drug_product_id", null: false
     t.integer "person_id", null: false
     t.datetime "updated_at", null: false
+    t.string "usage_kind"
+    t.json "usage_slots", default: [], null: false
     t.string "usage_text"
     t.index ["drug_product_id"], name: "index_medication_items_on_drug_product_id"
     t.index ["person_id", "drug_product_id"], name: "index_medication_items_on_person_id_and_drug_product_id", unique: true
     t.index ["person_id"], name: "index_medication_items_on_person_id"
+    t.index ["usage_kind"], name: "index_medication_items_on_usage_kind"
   end
 
   create_table "medication_lots", force: :cascade do |t|

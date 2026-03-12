@@ -25,7 +25,9 @@ class Api::CheckRequestsController < ApplicationController
             name: item.drug_product.display_name,
             dose_amount: "1",
             dose_unit: "錠",
-            usage_text: item.usage_text
+            usage_text: item.usage_text,
+            usage_kind: item.usage_kind,
+            usage_slots: item.usage_slots || []
           }
         end
       }
@@ -36,7 +38,12 @@ class Api::CheckRequestsController < ApplicationController
     person = Person.find_by(id: params[:id])
     return render json: { error: "対象者が見つかりません" }, status: :not_found if person.nil?
 
-    CheckRequests::ConfirmCurrent.new(person: person).call!
+    slot = params[:slot].presence || params.dig(:confirm_request, :slot).presence
+
+    CheckRequests::ConfirmCurrent.new(
+      person: person,
+      slot: slot
+    ).call!
 
     render json: { ok: true }
   rescue Stock::Consume::OutOfStock, ArgumentError => e

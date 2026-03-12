@@ -40,16 +40,80 @@
     <h4 style="margin-top: 12px;">薬ごとの入庫数</h4>
 
     <% @jahis.drugs.each_with_index do |drug, i| %>
+      <% suggestion = @usage_suggestions[i] || {} %>
+      <% suggested_kind = suggestion[:usage_kind] || "regular" %>
+      <% suggested_slots = suggestion[:usage_slots] || [] %>
+
       <div style="margin-top: 12px; padding: 10px; border: 1px solid #ddd;">
         <label><strong><%= drug[:display_name] %></strong></label><br>
 
         <% if @usage_texts.present? && @usage_texts[i].present? %>
           <div style="color: #555; margin: 4px 0 8px 0;">
-            <%= @usage_texts[i] %>
+            用法候補: <%= @usage_texts[i] %>
           </div>
         <% end %>
 
-        <%= number_field_tag "quantities[#{i}]", @suggested_quantities[i] || 0, min: 0 %>
+        <div style="margin-bottom: 8px;">
+          <label>入庫数</label><br>
+          <%= number_field_tag "quantities[#{i}]", @suggested_quantities[i] || 0, min: 0 %>
+        </div>
+
+        <div style="margin-top: 8px;">
+          <strong>飲むタイミング</strong><br>
+
+          <label style="margin-right: 12px;">
+            <%= radio_button_tag "usage_kind_by_index[#{i}]",
+                                 "regular",
+                                 suggested_kind == "regular",
+                                 class: "usage-kind-radio",
+                                 data: { index: i } %>
+            定期
+          </label>
+
+          <label>
+            <%= radio_button_tag "usage_kind_by_index[#{i}]",
+                                 "prn",
+                                 suggested_kind == "prn",
+                                 class: "usage-kind-radio",
+                                 data: { index: i } %>
+            頓服
+          </label>
+        </div>
+
+        <div id="usage_slots_box_<%= i %>" style="margin-top: 8px; margin-left: 12px;">
+          <input type="hidden" name="usage_slots_by_index[<%= i %>][]" value="" />
+
+          <label style="margin-right: 10px;">
+            <%= check_box_tag "usage_slots_by_index[#{i}][]",
+                              "morning",
+                              suggested_slots.include?("morning"),
+                              class: "usage-slot-checkbox",
+                              data: { index: i } %>
+            朝
+          </label>
+
+          <label style="margin-right: 10px;">
+            <%= check_box_tag "usage_slots_by_index[#{i}][]",
+                              "noon",
+                              suggested_slots.include?("noon"),
+                              class: "usage-slot-checkbox",
+                              data: { index: i } %>
+            昼
+          </label>
+
+          <label>
+            <%= check_box_tag "usage_slots_by_index[#{i}][]",
+                              "evening",
+                              suggested_slots.include?("evening"),
+                              class: "usage-slot-checkbox",
+                              data: { index: i } %>
+            晩
+          </label>
+        </div>
+
+        <div id="usage_error_<%= i %>" style="color: red; margin-top: 6px; display: none;">
+          定期薬は朝・昼・晩のいずれかを選択してください
+        </div>
       </div>
     <% end %>
   <% else %>
@@ -71,19 +135,69 @@
     const submit = document.getElementById("register_submit");
     const newName = document.querySelector('input[name="person_attributes[name]"]');
 
+    function personValid() {
+      const v = sel.value;
+      if (v && v !== "new") return true;
+      if (v === "new") return newName && newName.value.trim().length > 0;
+      return false;
+    }
+
+    function usageValid() {
+      const radios = document.querySelectorAll(".usage-kind-radio");
+      if (radios.length === 0) return true;
+
+      const indexes = [...new Set([...radios].map(r => r.dataset.index))];
+      let ok = true;
+
+      indexes.forEach((index) => {
+        const checkedKind = document.querySelector(`input[name="usage_kind_by_index[${index}]"]:checked`);
+        const error = document.getElementById(`usage_error_${index}`);
+        const box = document.getElementById(`usage_slots_box_${index}`);
+        const slots = document.querySelectorAll(`input[name="usage_slots_by_index[${index}][]"][type="checkbox"]`);
+
+        if (!checkedKind) {
+          ok = false;
+          if (error) error.style.display = "block";
+          return;
+        }
+
+        if (checkedKind.value === "prn") {
+          if (box) box.style.opacity = "0.5";
+          slots.forEach(cb => cb.disabled = true);
+          if (error) error.style.display = "none";
+          return;
+        }
+
+        if (box) box.style.opacity = "1";
+        slots.forEach(cb => cb.disabled = false);
+
+        const checkedSlots = [...slots].filter(cb => cb.checked);
+        const valid = checkedSlots.length > 0;
+
+        if (!valid) ok = false;
+        if (error) error.style.display = valid ? "none" : "block";
+      });
+
+      return ok;
+    }
+
     function update() {
       const v = sel.value;
       newFields.style.display = (v === "new") ? "block" : "none";
-
-      let ok = false;
-      if (v && v !== "new") ok = true;
-      if (v === "new") ok = (newName && newName.value.trim().length > 0);
-
-      submit.disabled = !ok;
+      submit.disabled = !(personValid() && usageValid());
     }
 
     sel.addEventListener("change", update);
     if (newName) newName.addEventListener("input", update);
+
+    document.querySelectorAll(".usage-kind-radio").forEach((el) => {
+      el.addEventListener("change", update);
+    });
+
+    document.querySelectorAll(".usage-slot-checkbox").forEach((el) => {
+      el.addEventListener("change", update);
+    });
+
     update();
   })();
 </script>

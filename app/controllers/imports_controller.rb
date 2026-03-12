@@ -22,6 +22,7 @@ class ImportsController < ApplicationController
 
     @suggested_quantities = build_suggested_quantities(@jahis)
     @usage_texts = build_usage_texts(@jahis)
+    @usage_suggestions = build_usage_suggestions(@jahis)
   end
 
   def register
@@ -35,7 +36,9 @@ class ImportsController < ApplicationController
       import: import,
       person: person,
       quantity: quantity,
-      quantities: quantities
+      quantities: quantities,
+      usage_kind_by_index: extract_usage_kind_by_index,
+      usage_slots_by_index: extract_usage_slots_by_index
     ).call!
 
     redirect_to root_path,
@@ -168,6 +171,24 @@ class ImportsController < ApplicationController
   end
 
   # ------------------------------------------------
+  # Usage slot estimation
+  # ------------------------------------------------
+
+  def build_usage_suggestions(jahis)
+    return {} unless jahis
+
+    jahis.drugs.each_with_index.each_with_object({}) do |(_drug, index), result|
+      usage_text = @usage_texts[index]
+      estimated = UsageSlotEstimator.call(usage_text)
+
+      result[index] = {
+        usage_kind: estimated.usage_kind,
+        usage_slots: estimated.usage_slots
+      }
+    end
+  end
+
+  # ------------------------------------------------
   # Person
   # ------------------------------------------------
 
@@ -183,7 +204,6 @@ class ImportsController < ApplicationController
       raise ArgumentError, "新規作成する場合は名前が必要です" if name.blank?
 
       Person.create!(name: name)
-
     else
       Person.find(choice)
     end
@@ -214,6 +234,26 @@ class ImportsController < ApplicationController
     end
 
     raise ArgumentError, "入庫数は1以上で入力してください" if quantity <= 0
+  end
+
+  # ------------------------------------------------
+  # Usage params
+  # ------------------------------------------------
+
+  def extract_usage_kind_by_index
+    params.permit(usage_kind_by_index: {})
+          .fetch(:usage_kind_by_index, {})
+          .to_h
+  end
+
+  def extract_usage_slots_by_index
+    raw = params[:usage_slots_by_index] || {}
+
+    if raw.respond_to?(:to_unsafe_h)
+      raw.to_unsafe_h
+    else
+      raw.to_h
+    end
   end
 
   # ------------------------------------------------

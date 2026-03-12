@@ -2,12 +2,14 @@ require "csv"
 
 module Imports
   class RegisterAndSeedStock
-    def initialize(import:, person:, quantity:, quantities: nil, expires_on: nil)
+    def initialize(import:, person:, quantity:, quantities: nil, expires_on: nil, usage_kind_by_index: nil, usage_slots_by_index: nil)
       @import = import
       @person = person
       @quantity = quantity.to_i
       @quantities = quantities&.to_h
       @expires_on = expires_on
+      @usage_kind_by_index = usage_kind_by_index&.to_h || {}
+      @usage_slots_by_index = usage_slots_by_index&.to_h || {}
     end
 
     def call!
@@ -24,13 +26,20 @@ module Imports
           lot_expires_on = resolve_expires_on(base_date, drug)
           usage_text = extract_usage_text(extracted, drug_hash)
 
+          usage_kind = resolve_usage_kind(index, usage_text)
+          usage_slots = resolve_usage_slots(index, usage_text, usage_kind)
+
+          validate_usage!(drug_hash[:display_name], usage_kind, usage_slots)
+
           Stock::Register.call(
             person: @person,
             drug_product: drug,
             base_date: base_date,
             expires_on: lot_expires_on,
             quantity: qty,
-            usage_text: usage_text
+            usage_text: usage_text,
+            usage_kind: usage_kind,
+            usage_slots: usage_slots
           )
         end
       end
@@ -103,6 +112,38 @@ module Imports
 
     def resolve_expires_on(base_date, drug)
       @expires_on || (base_date + drug.shelf_life_days_or_default)
+    end
+
+    def resolve_usage_kind(index, usage_text)
+      value = @usage_kind_by_index[index.to_s].to_s
+
+      return value if %w[regular prn].include?(value)
+
+      UsageSlotEstimator.call(usage_text).usage_kind
+    end
+
+    def resolve_usage_slots(index, usage_text, usage_kind)
+      return [] if usage_kind == "prn"
+
+      raw_slots = Array(@usage_slots_by_index[index.to_s]).reject(&:blank?)
+      return raw_slots if raw_slots.present?
+
+      UsageSlotEstimator.call(usage_text).usage_slots
+    end
+
+    def validate_usage!(drug_name, usage_kind, usage_slots)
+      unless %w[regular prn].include?(usage_kind)
+        raise ArgumentError, "#{drug_name} の飲み方区分を選択してください"
+      end
+
+      if usage_kind == "regular" && usage_slots.blank?
+        raise ArgumentError, "#{drug_name} は朝・昼・晩を1つ以上選択してください"
+      end
+
+      invalid_slots = usage_slots - %w[morning noon evening]
+      return if invalid_slots.empty?
+
+      raise ArgumentError, "#{drug_name} の時間帯指定が不正です"
     end
   end
 end

@@ -7,6 +7,17 @@ class MedicationItem < ApplicationRecord
   has_many :medication_lots, dependent: :destroy
   has_many :intake_logs, dependent: :destroy
 
+  enum :usage_kind, {
+    regular: "regular",
+    prn: "prn"
+  }, prefix: true
+
+  USAGE_SLOTS = %w[morning noon evening].freeze
+
+  validates :usage_kind, inclusion: { in: usage_kinds.keys }, allow_nil: true
+  validate :usage_slots_must_be_valid
+  validate :usage_kind_and_slots_must_make_sense
+
   def remaining_quantity
     medication_lots.sum(:quantity_remaining)
   end
@@ -41,5 +52,31 @@ class MedicationItem < ApplicationRecord
 
   def expired_lots
     medication_lots.remaining.expired.fifo
+  end
+
+  def for_slot?(slot)
+    return false if usage_kind_prn?
+    usage_slots.include?(slot.to_s)
+  end
+
+  private
+
+  def usage_slots_must_be_valid
+    invalid = Array(usage_slots) - USAGE_SLOTS
+    return if invalid.empty?
+
+    errors.add(:usage_slots, "に不正な値があります")
+  end
+
+  def usage_kind_and_slots_must_make_sense
+    return if usage_kind.blank?
+
+    if usage_kind_regular? && usage_slots.blank?
+      errors.add(:usage_slots, "を1つ以上選択してください")
+    end
+
+    if usage_kind_prn? && usage_slots.present?
+      errors.add(:usage_slots, "頓服の場合は空にしてください")
+    end
   end
 end
