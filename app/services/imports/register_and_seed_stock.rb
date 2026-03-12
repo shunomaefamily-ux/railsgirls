@@ -1,4 +1,3 @@
-# app/services/imports/register_and_seed_stock.rb
 module Imports
   class RegisterAndSeedStock
     def initialize(import:, person:, quantity:, quantities: nil, expires_on: nil)
@@ -14,7 +13,7 @@ module Imports
         ensure_not_registered!
         attach_person_to_import!
 
-        extracted = extract_tc08!
+        extracted = extract_jahis!
         base_date = extracted.base_date || Date.current
 
         extracted.drugs.each_with_index do |drug_hash, index|
@@ -43,11 +42,20 @@ module Imports
       @import.update!(person: @person)
     end
 
-    def extract_tc08!
-      extracted = Jahis::Tc08::Extractor.new(raw_text: @import.raw_text).call
+    def extract_jahis!
+      raw_text = @import.raw_text.to_s
 
-      unless extracted.version == "JAHISTC08"
-        raise ArgumentError, "JAHISTC08形式ではありません（手入力で登録してください）"
+      extracted =
+        if raw_text.start_with?("JAHISTC08")
+          Jahis::Tc08::Extractor.new(raw_text: raw_text).call
+        elsif raw_text.start_with?("JAHISTC06")
+          Jahis::Tc06::Extractor.new(raw_text: raw_text).call
+        else
+          nil
+        end
+
+      unless extracted
+        raise ArgumentError, "JAHISTC06/08形式ではありません（手入力で登録してください）"
       end
 
       extracted

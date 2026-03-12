@@ -15,8 +15,8 @@ class ImportsController < ApplicationController
   def show
     @import = Import.find(params[:id])
     @people = Person.order(:id)
-    @jahis_tc08 = extract_jahis_tc08(@import)
-    @suggested_quantities = build_suggested_quantities(@jahis_tc08)
+    @jahis = extract_jahis(@import)
+    @suggested_quantities = build_suggested_quantities(@jahis)
   end
 
   def register
@@ -74,19 +74,45 @@ class ImportsController < ApplicationController
     nil
   end
 
-  def extract_jahis_tc08(import)
-    return nil unless import.raw_text.to_s.start_with?("JAHISTC08")
+  def extract_jahis(import)
+    raw = normalize_jahis_text(import.raw_text)
 
-    Jahis::Tc08::Extractor.new(raw_text: import.raw_text).call
+    if jahis_tc08?(raw)
+      Jahis::Tc08::Extractor.new(raw_text: raw).call
+    elsif jahis_tc06?(raw)
+      Jahis::Tc06::Extractor.new(raw_text: raw).call
+    else
+      nil
+    end
   end
 
-  def build_suggested_quantities(jahis_tc08)
-    return {} unless jahis_tc08
+  def normalize_jahis_text(text)
+    text.to_s
+        .sub("\uFEFF", "")
+        .gsub("\r\n", "\n")
+        .gsub("\r", "\n")
+        .strip
+  end
 
-    jahis_tc08.drugs.each_with_index.each_with_object({}) do |(drug, index), result|
-      raw_usage_lines = jahis_tc08.raw_usage_by_rp[drug[:rp_no]]
+  def jahis_tc08?(text)
+    first_line(text).start_with?("JAHISTC08")
+  end
 
-      result[index] = Jahis::Tc08::QuantityEstimator.call(
+  def jahis_tc06?(text)
+    first_line(text).start_with?("JAHISTC06")
+  end
+
+  def first_line(text)
+    text.to_s.lines.first.to_s.strip
+  end
+
+  def build_suggested_quantities(jahis)
+    return {} unless jahis
+
+    jahis.drugs.each_with_index.each_with_object({}) do |(drug, index), result|
+      raw_usage_lines = jahis.raw_usage_by_rp[drug[:rp_no]]
+
+      result[index] = Jahis::QuantityEstimator.call(
         drug: drug,
         raw_usage_lines: raw_usage_lines
       )
