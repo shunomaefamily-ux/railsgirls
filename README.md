@@ -1,24 +1,9 @@
-# README
+# 家庭用おくすり管理アプリ
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+家庭内で使用する薬の **在庫管理・服薬記録** を行うアプリです。  
+薬を **人ごとに管理**し、**QRコードから薬情報を取り込み**、  
+**ロット単位で在庫管理しFIFOで消費**できるように設計しています。
 
-Things you may want to cover:
+Androidアプリをフロントエンドとして、  
+Ruby on Rails APIと連携する構成になっています。
 
-* Ruby version
-
-* System dependencies
-
-* Configuration
-
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
