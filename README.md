@@ -13,6 +13,12 @@ Ruby on Rails API と連携する構成になっています。
 # デモ
 
 （デモ環境URLができたら追加）
+### Rails API サーバー（Render）
+
+https://railsgirls-psq6.onrender.com/
+
+※ Renderの無料プランのため、初回アクセス時は起動に30秒ほどかかる場合があります。
+
 
 ### Android
 
