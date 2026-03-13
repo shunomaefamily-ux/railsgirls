@@ -1,11 +1,12 @@
 # 家庭用おくすり管理アプリ
 
-家庭内で使用する薬の **在庫管理・服薬記録** を行うアプリです。  
+家庭内で使用する薬の **在庫管理・服薬記録** を行うアプリです。
+
 薬を **人ごとに管理**し、**QRコードから薬情報を取り込み**、  
-**ロット単位で在庫管理しFIFOで消費**できるように設計しています。
+**ロット単位で在庫管理し FIFO で消費**できるように設計しています。
 
 Androidアプリをフロントエンドとして、  
-Ruby on Rails APIと連携する構成になっています。
+Ruby on Rails API と連携する構成になっています。
 
 ---
 
@@ -13,108 +14,130 @@ Ruby on Rails APIと連携する構成になっています。
 
 （デモ環境URLができたら追加）
 
-
-Android
+### Android
 
 https://github.com/shunomaefamily-ux/okusuriyouapuri
 
-Rails
+### Rails
 
 https://github.com/shunomaefamily-ux/railsgirls
-システム構成
+
+---
+
+# システム構成
+
+
 Android App (Kotlin / Jetpack Compose)
-        │
-        │ HTTP (Retrofit)
-        ▼
+│
+│ HTTP (Retrofit)
+▼
 Rails API (Ruby on Rails)
-        │
-        ▼
+│
+▼
 Database
-  開発 : SQLite3
-  本番 : PostgreSQL (Render)
-使用技術
-Backend
+開発 : SQLite3
+本番 : PostgreSQL (Render)
 
-Ruby 3.x
 
-Ruby on Rails
+---
 
-SQLite3（開発）
+# 使用技術
 
-PostgreSQL（本番）
+## Backend
 
-Render（デプロイ予定）
+- Ruby 3.x
+- Ruby on Rails
+- SQLite3（開発）
+- PostgreSQL（本番）
+- Render（デプロイ予定）
 
-テスト
+### テスト
 
-Minitest
+- Minitest
 
-Android
+---
 
-Kotlin
+## Android
 
-Jetpack Compose
+- Kotlin
+- Jetpack Compose
+- Retrofit
 
-Retrofit
+---
 
-主な機能
-薬マスタ管理
+# 主な機能
+
+## 薬マスタ管理
 
 薬の基本情報を管理します。
 
-薬名
+- 薬名
+- 規格
+- メーカー
 
-規格
+---
 
-メーカー
-
-人ごとの薬管理
+## 人ごとの薬管理
 
 家庭内の人ごとに薬を管理します。
 
 例
 
-父
+- 父
+- 母
+- 子供
 
-母
+---
 
-子供
+## 薬在庫管理（ロット単位）
 
-薬在庫管理（ロット単位）
-
-薬を ロット単位で管理します。
+薬を **ロット単位で管理**します。
 
 管理項目
 
-ロット
+- ロット
+- 使用期限
+- 数量
 
-使用期限
+---
 
-数量
+## FIFO在庫消費
 
-FIFO在庫消費
+服薬記録登録時に **古いロットから自動で在庫を消費**します。
 
-服薬記録登録時に
-古いロットから自動で在庫を消費します。
 
 Stock::Consume
 
+
 サービスオブジェクトとして実装しています。
 
-服薬ログ
+---
+
+## 服薬ログ
 
 誰がいつ薬を飲んだかを記録します。
 
-IntakeLog
-QRコードから薬情報取り込み
 
-JAHIS規格のQRコードを読み取り
+IntakeLog
+
+
+---
+
+## QRコードから薬情報取り込み
+
+JAHIS規格のQRコードを読み取り、  
 薬情報を自動登録します。
 
+
 Imports::JahisExtractor
-モデル構成
+
+
+---
+
+# モデル構成
 
 主要モデル
+
 
 Person
 DrugProduct
@@ -122,84 +145,120 @@ MedicationItem
 MedicationLot
 IntakeLog
 Import
-モデル設計
-DrugProduct
+
+
+---
+
+# モデル設計
+
+## DrugProduct
 
 薬のマスタ情報
 
 例
 
-薬名
+- 薬名
+- 規格
 
-規格
+---
 
-MedicationItem
+## MedicationItem
 
 人ごとの薬管理
 
+
 Person
-  └ MedicationItem
-       └ MedicationLot
-MedicationLot
+└ MedicationItem
+└ MedicationLot
+
+
+---
+
+## MedicationLot
 
 ロット単位の在庫管理
 
 管理内容
 
-数量
+- 数量
+- 使用期限
 
-使用期限
+---
 
-IntakeLog
+## IntakeLog
 
 服薬履歴
 
-Import
+---
+
+## Import
 
 QRコード取込履歴
 
-設計上の工夫
-薬マスタと利用薬を分離
+---
+
+# 設計上の工夫
+
+## 薬マスタと利用薬を分離
+
+
 DrugProduct
 MedicationItem
 
+
 を分離することで
 
-薬マスタの再利用
-
-人ごとの管理
+- 薬マスタの再利用
+- 人ごとの管理
 
 を実現しています。
 
-ロット単位在庫管理
+---
+
+## ロット単位在庫管理
+
+
 MedicationLot
+
 
 により
 
-使用期限
-
-在庫管理
+- 使用期限
+- 在庫管理
 
 を行います。
 
-FIFO消費
+---
+
+## FIFO消費
 
 古いロットから消費するように
 
+
 Stock::Consume
+
 
 サービスオブジェクトで実装しています。
 
-QRコード取り込み
+---
+
+## QRコード取り込み
 
 JAHIS規格QRから薬情報を解析する
 
+
 Imports::JahisExtractor
+
 
 を実装しています。
 
-セットアップ
-Rails
+---
+
+# セットアップ
+
+## Rails
+
+```bash
 git clone https://github.com/shunomaefamily-ux/railsgirls.git
 cd railsgirls
 bundle install
@@ -247,3 +306,27 @@ UI改善
 服薬履歴が残らない
 
 という課題を解決するために作成しました。
+
+
+---
+
+## さらに良くするためのおすすめ（面接対策）
+
+あと **2つ追加するとポートフォリオ評価がかなり上がります。**
+
+### ① ER図
+採用エンジニアが一番見たい
+
+
+Person
+└ MedicationItem
+└ MedicationLot
+└ IntakeLog
+DrugProduct
+Import
+
+
+### ② アプリ画面スクショ
+
+
+/docs/images
